@@ -1,0 +1,57 @@
+# requirements.txt
+# =============================================================================
+# Python dependencies for the chess book-exit research pipeline.
+# Install with:
+#
+#   pip install -r requirements.txt
+#
+# Version policy:
+#   Pure-Python packages are pinned exactly (==) for reproducibility.
+#   Packages with C extensions use >= lower bounds so pip can find a
+#   pre-built wheel for your Python version and OS. Without pre-built
+#   wheels, pip tries to compile from C source, which requires a C
+#   compiler that Windows does not ship by default.
+# =============================================================================
+
+# ── Chess game parsing and engine interaction ─────────────────────────────────
+chess==1.10.0           # Pure Python — pinned exactly. PGN parsing, board
+                        # representation, Stockfish integration via chess.engine.
+
+# ── Data compression ──────────────────────────────────────────────────────────
+zstandard>=0.23.0       # C extension. 0.23.0+ has pre-built Windows wheels for
+                        # Python 3.12 and 3.13. Lichess .pgn.zst files use
+                        # Zstandard compression — standard gzip tools won't work.
+
+# ── Networking ────────────────────────────────────────────────────────────────
+requests==2.31.0        # Pure Python — pinned exactly. HTTP downloads with
+                        # resume support via Range headers.
+
+# ── Progress display ──────────────────────────────────────────────────────────
+tqdm==4.66.0            # Pure Python — pinned exactly. Progress bars for
+                        # long-running loops.
+
+# ── Data handling ─────────────────────────────────────────────────────────────
+pandas>=2.2.2           # C extension. 2.2.2+ has Python 3.13 wheels.
+numpy>=2.0.0            # C extension. 2.0+ has Python 3.13 wheels.
+
+# ── Statistics ────────────────────────────────────────────────────────────────
+statsmodels>=0.14.2     # C extension. 0.14.2+ has Python 3.13 wheels.
+scipy>=1.13.0           # C extension. 1.13.0+ has Python 3.13 wheels.
+scikit-posthocs==0.8.0  # Pure Python — pinned exactly. Dunn's post-hoc test.
+
+# ── Figures ───────────────────────────────────────────────────────────────────
+matplotlib>=3.9.0       # C extension. 3.9.0+ has Python 3.13 wheels.
+seaborn>=0.13.2         # Pure Python — pinned exactly (lower bound).
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest==8.0.0           # Pure Python — pinned exactly.
+
+# ── Notebooks (optional — NOT included) ───────────────────────────────────────
+# jupyter is intentionally excluded. On Windows, Jupyter's labextensions
+# create file paths longer than Windows' 260-character default limit, causing
+# an OSError during installation. None of the pipeline scripts (01-07) use
+# Jupyter, so it is not needed to run or reproduce this analysis.
+# To install Jupyter later: first enable Windows Long Path support by running
+# PowerShell as Administrator and executing:
+#   reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+# Then restart your computer, then: pip install jupyter
