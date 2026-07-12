@@ -385,7 +385,7 @@ def save_checkpoint(
     tmp_path = CHECKPOINT_PATH.with_suffix('.pkl.tmp')
     with open(tmp_path, 'wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-    tmp_path.rename(CHECKPOINT_PATH)  # atomic rename
+    tmp_path.replace(CHECKPOINT_PATH)  # replace() overwrites on Windows; rename() does not
 
     log.info(
         f'  [Checkpoint] {games_read:,} games read | '
