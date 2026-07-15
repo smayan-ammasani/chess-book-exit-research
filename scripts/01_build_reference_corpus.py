@@ -111,12 +111,19 @@ RAW_DIR.mkdir(parents=True, exist_ok=True)
 CORPUS_DIR.mkdir(parents=True, exist_ok=True)
 
 DOWNLOAD_PATH   = RAW_DIR    / f'lichess_db_standard_rated_{REFERENCE_MONTH}.pgn.zst'
-CHECKPOINT_PATH = CORPUS_DIR / 'checkpoint.pkl'
 OUTPUT_PATH     = CORPUS_DIR / 'book_sequences.csv'
 
-# How often to save a checkpoint (every N games read from the raw file,
-# whether they pass the filter or not).
-CHECKPOINT_INTERVAL = 100_000
+# Two rotating checkpoint files. Each save alternates between A and B so that
+# a crash or OS filesystem rollback during a write can never destroy BOTH copies.
+# On restart, load_checkpoint() picks whichever file has the higher game count.
+CHECKPOINT_A    = CORPUS_DIR / 'checkpoint_a.pkl'
+CHECKPOINT_B    = CORPUS_DIR / 'checkpoint_b.pkl'
+# Legacy path from earlier runs — loaded as fallback if neither A nor B exists.
+CHECKPOINT_LEGACY = CORPUS_DIR / 'checkpoint.pkl'
+
+# Save every 25,000 games (~60 seconds at 400 games/sec).
+# Worst-case lost work on crash: ~1 minute of processing.
+CHECKPOINT_INTERVAL = 25_000
 
 
 # ==============================================================================
@@ -356,6 +363,9 @@ def extract_prefixes(game: chess.pgn.Game):
 # PHASE 4 — CHECKPOINTING
 # ==============================================================================
 
+# Tracks which checkpoint slot to write to next (0 = A, 1 = B, alternating)
+_checkpoint_slot = 0
+
 def save_checkpoint(
     counts: defaultdict,
     games_read: int,
@@ -363,67 +373,80 @@ def save_checkpoint(
     exclusion_counts: dict,
 ) -> None:
     """
-    Write current progress to disk so we can resume if interrupted.
+    Write current progress to disk using two rotating checkpoint files.
 
-    We write to a temp file first, then rename atomically. This prevents
-    checkpoint corruption if the script is killed mid-write (e.g. power
-    outage, Ctrl+C at exactly the wrong moment).
+    Alternates writes between checkpoint_a.pkl and checkpoint_b.pkl.
+    If one file is corrupt or partially written (e.g. OS killed mid-write),
+    the other still holds the previous good checkpoint.
 
-    Args:
-        counts:           The current sequence frequency dictionary
-        games_read:       Total games read from the raw file so far
-        games_kept:       Games that passed all filters so far
-        exclusion_counts: Dictionary tracking why games were excluded
+    Uses .replace() instead of .rename() — replace() overwrites atomically
+    on both Windows and Unix; rename() raises FileExistsError on Windows.
     """
+    global _checkpoint_slot
+
+    target = CHECKPOINT_A if _checkpoint_slot % 2 == 0 else CHECKPOINT_B
+    tmp    = target.with_suffix('.pkl.tmp')
+
     data = {
-        'counts':           dict(counts),  # defaultdict → regular dict for pickling
+        'counts':           dict(counts),
         'games_read':       games_read,
         'games_kept':       games_kept,
         'exclusion_counts': exclusion_counts,
     }
 
-    tmp_path = CHECKPOINT_PATH.with_suffix('.pkl.tmp')
-    with open(tmp_path, 'wb') as f:
+    with open(tmp, 'wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-    tmp_path.replace(CHECKPOINT_PATH)  # replace() overwrites on Windows; rename() does not
+    tmp.replace(target)
+
+    _checkpoint_slot += 1
 
     log.info(
-        f'  [Checkpoint] {games_read:,} games read | '
-        f'{games_kept:,} kept | '
-        f'{len(counts):,} unique sequences'
+        f'  [Checkpoint → {target.name}] {games_read:,} read | '
+        f'{games_kept:,} kept | {len(counts):,} sequences'
     )
 
 
 def load_checkpoint() -> tuple:
     """
-    Load a previous checkpoint if one exists.
+    Load the most recent valid checkpoint from either rotating slot,
+    with fallback to the legacy checkpoint.pkl from earlier runs.
 
     Returns:
         (counts, games_read, games_kept, exclusion_counts)
 
-    If no checkpoint exists, returns empty/zero values for all fields.
-
-    IMPORTANT: When resuming, we skip the first `games_read` games in the
-    raw file by fast-reading without processing them. This is O(N) work but
-    unavoidable because Zstandard streams are not randomly seekable.
+    Tries checkpoint_a.pkl, checkpoint_b.pkl, and checkpoint.pkl (legacy).
+    Picks whichever has the highest games_read value and is not corrupt.
     """
-    if not CHECKPOINT_PATH.exists():
-        log.info('No checkpoint found — starting from the beginning.')
+    best      = None
+    best_path = None
+
+    candidates = [CHECKPOINT_A, CHECKPOINT_B, CHECKPOINT_LEGACY]
+
+    for path in candidates:
+        if not path.exists():
+            continue
+        try:
+            with open(path, 'rb') as f:
+                data = pickle.load(f)
+            if best is None or data['games_read'] > best['games_read']:
+                best      = data
+                best_path = path
+            log.info(f'  Found {path.name}: {data["games_read"]:,} games read')
+        except Exception as e:
+            log.warning(f'  {path.name} is corrupt and will be ignored: {e}')
+
+    if best is None:
+        log.info('No valid checkpoint found — starting from the beginning.')
         return defaultdict(int), 0, 0, {}
 
-    log.info(f'Found checkpoint: {CHECKPOINT_PATH}')
-    with open(CHECKPOINT_PATH, 'rb') as f:
-        data = pickle.load(f)
+    log.info(f'Loading from {best_path.name} ({best["games_read"]:,} games read, '
+             f'{best["games_kept"]:,} kept, {len(best["counts"]):,} sequences).')
 
-    counts           = defaultdict(int, data['counts'])
-    games_read       = data['games_read']
-    games_kept       = data['games_kept']
-    exclusion_counts = data.get('exclusion_counts', {})
+    counts           = defaultdict(int, best['counts'])
+    games_read       = best['games_read']
+    games_kept       = best['games_kept']
+    exclusion_counts = best.get('exclusion_counts', {})
 
-    log.info(
-        f'Resuming from game {games_read:,} '
-        f'({games_kept:,} kept, {len(counts):,} sequences so far).'
-    )
     return counts, games_read, games_kept, exclusion_counts
 
 
@@ -472,19 +495,33 @@ def build_sequence_counts() -> defaultdict:
                 dynamic_ncols=True,
             ) as pbar:
 
-                # ── Resume: skip games already processed in a prior run ─────
+                # ── Resume: fast-skip games already processed ───────────
                 if start_at > 0:
-                    log.info(f'Skipping {start_at:,} already-processed games...')
+                    log.info(f'Fast-skipping {start_at:,} already-processed games...')
+                    log.info('(Scanning for game boundaries without parsing moves — '
+                             'much faster than before.)')
+
+                    # Scan line-by-line and count game-result tokens.
+                    # In Lichess PGN format, every game ends with a result token
+                    # (1-0, 0-1, 1/2-1/2, or *) as the last word on a line.
+                    # This avoids expensive board operations (legal move generation,
+                    # piece tracking) used by chess.pgn.read_game(), making the
+                    # skip 5-10x faster than the previous implementation.
+                    RESULT_TOKENS = {'1-0', '0-1', '1/2-1/2', '*'}
                     skipped = 0
-                    while skipped < start_at:
-                        try:
-                            g = chess.pgn.read_game(text_stream)
-                        except Exception:
-                            pass
-                        if g is None:
-                            break
-                        skipped += 1
-                    pbar.update(start_at)
+                    for line in text_stream:
+                        stripped = line.strip()
+                        if stripped:
+                            last_word = stripped.split()[-1]
+                            if last_word in RESULT_TOKENS:
+                                skipped += 1
+                                if skipped % 500_000 == 0:
+                                    pbar.update(500_000)
+                                    log.info(f'  Fast-skipped {skipped:,} / {start_at:,}...')
+                                if skipped >= start_at:
+                                    break
+                    pbar.update(skipped % 500_000)  # update remainder
+                    log.info(f'Skip complete. Resuming processing from game {start_at:,}.')
 
                 # ── Main loop ─────────────────────────────────────────────────
                 while True:
