@@ -712,10 +712,11 @@ def main():
     log.info('Phase 6: Saving output...')
     save_output(counts)
 
-    # Clean up checkpoint file now that we have the final output
-    if CHECKPOINT_PATH.exists():
-        CHECKPOINT_PATH.unlink()
-        log.info('Checkpoint file deleted (no longer needed).')
+    # Clean up checkpoint files now that we have the final output
+    for ck in [CHECKPOINT_A, CHECKPOINT_B, CHECKPOINT_LEGACY]:
+        if ck.exists():
+            ck.unlink()
+            log.info(f'Checkpoint file deleted: {ck.name}')
 
     log.info('')
     log.info('Script 01 complete.')
