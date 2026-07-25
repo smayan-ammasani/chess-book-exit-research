@@ -141,7 +141,7 @@ PREMOVE_THRESHOLD_SECONDS = 0.5
 # across 12M+ Lichess games. We compute it only at our two boundary positions
 # per game (not every move), keeping compute requirements manageable.
 #
-STOCKFISH_PATH        = "./stockfish/stockfish"   # Update if binary is elsewhere
+STOCKFISH_PATH = "./stockfish/stockfish.exe"   # Update if binary is elsewhere
 STOCKFISH_DEPTH_SHALLOW = 1
 STOCKFISH_DEPTH_DEEP    = 15
 STOCKFISH_EVAL_CAP_CP   = 1000    # Cap centipawn scores to avoid mate-distance outliers
