@@ -134,9 +134,11 @@ def figure1_main_effect(sample_df: pd.DataFrame) -> None:
         data=df_long,
         x='condition',
         y='log_time',
-        palette=[BOOK_COLOR, OOB_COLOR],
+        hue='condition',
+        palette={'Last book move': BOOK_COLOR, 'First out-of-book move': OOB_COLOR},
         inner='box',
         cut=0,
+        legend=False,
         ax=ax,
     )
 
@@ -154,6 +156,7 @@ def figure1_main_effect(sample_df: pd.DataFrame) -> None:
         ax.text(i, med + 0.05, f'Mdn = {med:.2f}',
                 ha='center', va='bottom', fontsize=9, color='white', fontweight='bold')
 
+    ax.set_xticks(range(2))
     ax.set_xticklabels(['Last book move\n(in preparation)',
                         'First out-of-book move\n(leaving preparation)'])
 
