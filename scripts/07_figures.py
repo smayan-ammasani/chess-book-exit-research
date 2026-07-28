@@ -266,19 +266,29 @@ def figure3_voc_control(sample_df: pd.DataFrame) -> None:
         ('last_book_voc',  'log_last_book_time',  BOOK_COLOR, 'Last book move'),
         ('first_oob_voc',  'log_first_oob_time',  OOB_COLOR,  'First out-of-book move'),
     ]):
-        x = sub[col_x].clip(0, 500)   # cap extreme outliers for display
+        x = sub[col_x].clip(0, 500)
         y = sub[col_y]
 
-        ax.scatter(x, y, alpha=0.04, s=4, color=color, rasterized=True)
+        # For visualization only: exclude near-zero thinking times (log < -1)
+        # These are premovedmoves (0-second clock reads) that compress the
+        # y-axis and obscure the main distribution. They remain in the analysis
+        # dataset — this clip is purely cosmetic for Figure 3.
+        vis_mask = y > -1.0
+        x_vis = x[vis_mask]
+        y_vis = y[vis_mask]
 
-        # Linear fit
-        m, b = np.polyfit(x, y, 1)
-        x_line = np.linspace(x.min(), x.quantile(0.99), 100)
-        ax.plot(x_line, m * x_line + b, color='black', linewidth=1.5, zorder=5)
+        ax.scatter(x_vis, y_vis, alpha=0.04, s=4, color=color, rasterized=True)
+
+        # Linear fit on the same visualization-masked data
+        if len(x_vis) > 10:
+            m, b = np.polyfit(x_vis, y_vis, 1)
+            x_line = np.linspace(x_vis.min(), np.percentile(x_vis, 99), 100)
+            ax.plot(x_line, m * x_line + b, color='black', linewidth=1.5, zorder=5)
 
         ax.set_xlabel('Value of computation (VOC, centipawns)')
         ax.set_title(label, color=color, fontweight='bold')
         ax.set_xlim(-5, 505)
+        ax.set_ylim(-1, 7)   # clip y-axis: shows 0.37s–1097s range
 
     axes[0].set_ylabel('Log thinking time (log seconds)')
 
