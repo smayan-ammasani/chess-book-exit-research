@@ -147,33 +147,45 @@ def exgauss_params_from_scipy(K: float, loc: float, scale: float) -> dict:
     }
 
 
-def fit_exgaussian(data: np.ndarray) -> dict | None:
+def fit_exgaussian(data: np.ndarray, seed: int = 42) -> dict | None:
     """
-    Fit an ex-Gaussian distribution to reaction time data using MLE.
+    Fit an ex-Gaussian distribution using the method of moments.
 
-    Filters data to [MIN_TIME_FOR_FIT, MAX_TIME_FOR_FIT] before fitting.
-    Returns None if fitting fails or if too few observations remain.
+    MLE (scipy.stats.exponnorm.fit) is numerically unstable with the
+    integer-second clock data produced by Lichess. Method of moments (MOM)
+    is the standard alternative for discretized RT data (Ratcliff 1979;
+    Van Zandt 2000).
+
+    Jitter of [-0.4, +0.4] seconds is added to convert integer-second
+    values to pseudo-continuous data before parameter estimation.
     """
+    rng   = np.random.default_rng(seed)
     clean = data[(data >= MIN_TIME_FOR_FIT) & (data <= MAX_TIME_FOR_FIT)]
     clean = clean[np.isfinite(clean)]
 
     if len(clean) < 50:
         return None
 
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            K, loc, scale = stats.exponnorm.fit(clean, floc=None, fscale=None)
+    # Jitter to pseudo-continuous (standard for RT distributions)
+    jittered = clean + rng.uniform(-0.4, 0.4, size=len(clean))
+    jittered = np.clip(jittered, MIN_TIME_FOR_FIT, MAX_TIME_FOR_FIT)
 
-        if K <= 0 or scale <= 0:
-            return None
+    m    = float(np.mean(jittered))
+    v    = float(np.var(jittered))
+    skew = float(stats.skew(jittered))
 
-        params = exgauss_params_from_scipy(K, loc, scale)
-        params['n'] = len(clean)
-        return params
+    tau   = max(0.05, (v * max(skew, 0.01) / 2) ** (1/3))
+    sigma = max(0.05, float(np.sqrt(max(0.01, v - tau**2))))
+    mu    = max(0.05, m - tau)
 
-    except Exception:
-        return None
+    return {
+        'mu':    round(mu,    3),
+        'sigma': round(sigma, 3),
+        'tau':   round(tau,   3),
+        'mean':  round(mu + tau, 3),
+        'sd':    round(float(np.sqrt(sigma**2 + tau**2)), 3),
+        'n':     len(clean),
+    }
 
 
 def bootstrap_ci(data: np.ndarray, n_boot: int, seed: int) -> dict:
@@ -196,9 +208,11 @@ def bootstrap_ci(data: np.ndarray, n_boot: int, seed: int) -> dict:
                 'sigma_lo': np.nan, 'sigma_hi': np.nan,
                 'tau_lo': np.nan, 'tau_hi': np.nan}
 
+    seed_counter = 0
     for _ in range(n_boot):
         sample = rng.choice(clean, size=len(clean), replace=True)
-        result = fit_exgaussian(sample)
+        result = fit_exgaussian(sample, seed=seed_counter)
+        seed_counter += 1
         if result is not None:
             boot_mu.append(result['mu'])
             boot_sigma.append(result['sigma'])
@@ -299,6 +313,10 @@ def figure5_exgaussian(results: pd.DataFrame) -> None:
     cognitive switch). If tau is similar but mu differs, it suggests a
     continuous gradient.
     """
+    if results.empty or 'condition' not in results.columns:
+        log.warning('No fitted parameters to plot — skipping Figure 5.')
+        return
+
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.5), sharey=False)
 
     book_color = '#4878CF'
@@ -393,6 +411,10 @@ def interpret_results(results: pd.DataFrame) -> None:
     log.info(f'{"Band":<15} {"Δmu (OOB-book)":>16} {"Δtau (OOB-book)":>16} '
              f'{"Δtau/Δmu":>10} {"Support for H3"}')
     log.info('-' * 75)
+
+    if results.empty or 'condition' not in results.columns:
+        log.warning('No results to interpret.')
+        return
 
     for band in BAND_ORDER:
         book_row = results[(results['rating_band'] == band) &
