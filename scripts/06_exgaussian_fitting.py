@@ -174,7 +174,7 @@ def fit_exgaussian(data: np.ndarray, seed: int = 42) -> dict | None:
     v    = float(np.var(jittered))
     skew = float(stats.skew(jittered))
 
-    tau   = max(0.05, (v * max(skew, 0.01) / 2) ** (1/3))
+    tau   = max(0.05, (v**1.5 * max(skew, 0.01) / 2) ** (1/3))
     sigma = max(0.05, float(np.sqrt(max(0.01, v - tau**2))))
     mu    = max(0.05, m - tau)
 
