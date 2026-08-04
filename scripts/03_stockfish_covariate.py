@@ -243,12 +243,12 @@ def analyze_position(board: chess.Board, engine: chess.engine.SimpleEngine) -> d
 
     try:
         # Shallow analysis
-        info_s  = engine.analyse(board, chess.engine.Limit(depth=STOCKFISH_DEPTH_SHALLOW))
+        info_s  = engine.analyse(board, chess.engine.Limit(depth=STOCKFISH_DEPTH_SHALLOW), game=board.fen())
         score_s = info_s['score'].white().score(mate_score=STOCKFISH_EVAL_CAP_CP)
         score_s = max(-STOCKFISH_EVAL_CAP_CP, min(STOCKFISH_EVAL_CAP_CP, int(score_s)))
 
         # Deep analysis
-        info_d  = engine.analyse(board, chess.engine.Limit(depth=STOCKFISH_DEPTH_DEEP))
+        info_d  = engine.analyse(board, chess.engine.Limit(depth=STOCKFISH_DEPTH_DEEP), game=board.fen())
         score_d = info_d['score'].white().score(mate_score=STOCKFISH_EVAL_CAP_CP)
         score_d = max(-STOCKFISH_EVAL_CAP_CP, min(STOCKFISH_EVAL_CAP_CP, int(score_d)))
 
@@ -259,7 +259,7 @@ def analyze_position(board: chess.Board, engine: chess.engine.SimpleEngine) -> d
         }
 
     except Exception as e:
-        log.debug(f'Stockfish error: {e}')
+        log.warning(f'Stockfish error: {e}')
         return {'voc': 0.0, 'eval_depth1': 0, 'eval_depth15': 0}
 
 

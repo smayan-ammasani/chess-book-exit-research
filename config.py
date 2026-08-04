@@ -6,7 +6,7 @@
 # this file — nothing is hardcoded inside a script. This means:
 #   - Changing a parameter once changes it everywhere
 #   - Your Methods section can point to this file as the authoritative record
-#     of every analytic choice made before the data was examined
+#     of every analytic choice used in the analysis
 #   - Reviewers can reproduce the analysis by running the pipeline with
 #     these exact settings
 # =============================================================================
@@ -105,7 +105,7 @@ MAX_PLIES_FOR_BOOK = 40
 # ECO codes (which stop classifying lines after ~10-20 moves regardless of
 # how deeply players actually prepare).
 #
-# PRIMARY_BOOK_THRESHOLD is used in the main pre-registered analysis.
+# PRIMARY_BOOK_THRESHOLD is used in the main analysis.
 # ROBUSTNESS_THRESHOLDS are used in sensitivity checks to confirm the result
 # does not depend on the specific cutoff chosen.
 #
