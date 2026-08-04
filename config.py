@@ -145,7 +145,7 @@ STOCKFISH_PATH = "./stockfish/stockfish.exe"   # Update if binary is elsewhere
 STOCKFISH_DEPTH_SHALLOW = 1
 STOCKFISH_DEPTH_DEEP    = 15
 STOCKFISH_EVAL_CAP_CP   = 1000    # Cap centipawn scores to avoid mate-distance outliers
-STOCKFISH_THREADS       = max(1, os.cpu_count() - 1)  # Leave one core free
+STOCKFISH_THREADS = 1   # was max(1, os.cpu_count() - 1); >1 makes Stockfish non-deterministic
 
 # ── Statistical model ──────────────────────────────────────────────────────────
 RANDOM_SEED               = 42    # All random operations use this seed (reproducibility)
