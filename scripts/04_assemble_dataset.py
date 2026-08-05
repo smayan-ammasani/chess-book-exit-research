@@ -22,26 +22,36 @@ OUTPUT
     data/processed/analysis_sample.csv
     data/processed/player_aggregated.csv
 
-FILTERS APPLIED (all pre-registered before data examination)
-    1. Exclude pairs where first_oob_is_premove = True
-       (Lichess premoves register as near-zero clock times — not cognitive)
-    2. Exclude pairs where either VOC is missing (Stockfish failure)
+FILTERS APPLIED
+    1. Exclude pairs where EITHER the last-book move OR the first-OOB move
+       is a premove (thinking time <= PREMOVE_THRESHOLD_SECONDS). The filter
+       must be symmetric: the outcome is (OOB time - book time), so excluding
+       fast moves on one side only inflates the difference by construction.
+    2. Exclude pairs where either VOC is missing (Stockfish failure).
     3. Exclude players with fewer than MIN_TRANSITIONS_PER_PLAYER usable
-       pairs (insufficient data to estimate a reliable random intercept)
+       pairs. Applied during sampling, so it reaches analysis_sample.csv
+       and not only player_aggregated.csv.
+
+    Corrected analysis pre-registered at https://osf.io/n6tkx/ (2026-08-04),
+    before these filters were re-run. Prior results are withdrawn; see
+    docs/findings/2026-08-03-pipeline-defects.md.
 
 LOG TRANSFORMATION
-    Move times are right-skewed (most moves are fast, a few are very slow).
-    This violates the normality assumption of linear regression. We apply
-    log(x + 0.001) to both thinking times before modeling. The +0.001
-    offset (0.001 seconds) is negligible for real thinking times but
-    prevents log(0) errors for near-instant moves.
+    Move times are right-skewed, violating the normality assumption of
+    linear regression, so both thinking times are log-transformed. No
+    offset is added: filter 1 floors every retained time above the premove
+    threshold, so log(0) cannot occur. A previous version added 0.001,
+    which turned any retained near-zero time into an extreme negative
+    outlier (log(0.001) = -6.9 against roughly 1.4 for a typical move).
 
 SAMPLING
-    The mixed-effects model in Script 05 cannot practically run on 20M+
-    observations. The analysis_sample is a stratified random sample of
-    1,000,000 pairs, balanced across rating bands so that Band 5 (the
-    smallest band) is represented proportionally. The sample is fixed by
-    RANDOM_SEED for reproducibility.
+    The mixed-effects model in Script 05 cannot run on 20M+ observations.
+    analysis_sample.csv holds a stratified sample balanced across rating
+    bands so band 5 is adequately represented. Selection within each band
+    is systematic (evenly spaced across the band's full sequence) rather
+    than sequential, because boundary_pairs.csv inherits the chronological
+    order of the source dump and taking the first N rows would restrict
+    the sample to the earliest days of the month.
 
 ESTIMATED RUNTIME
     20-40 minutes (streaming 4.9 GB in chunks + aggregation).
@@ -91,7 +101,7 @@ SAMPLE_SIZE = 1_000_000
 CHUNK_SIZE = 100_000
 
 # Small offset added before log-transforming to prevent log(0) errors
-LOG_OFFSET = 0.001
+LOG_OFFSET = 0.0
 
 
 # ==============================================================================
@@ -183,11 +193,12 @@ def process_chunk(chunk: pd.DataFrame, voc_lookup: dict,
     """
     n_in = len(chunk)
 
-    # ── Filter 1: premove-suspect OOB moves ───────────────────────────────────
-    premove_mask = chunk['first_oob_is_premove'].astype(bool)
+    # ── Filter 1: premove on either side of the boundary ──────────────────────
+    premove_mask = (chunk['first_oob_is_premove'].astype(bool)
+                    | chunk['last_book_is_premove'].astype(bool))
     n_premove    = premove_mask.sum()
     chunk        = chunk[~premove_mask].copy()
-    exclusion_counts['first_oob_premove'] += n_premove
+    exclusion_counts['either_move_premove'] += n_premove
 
     if chunk.empty:
         return chunk
@@ -208,10 +219,8 @@ def process_chunk(chunk: pd.DataFrame, voc_lookup: dict,
     if chunk.empty:
         return chunk
 
-    # ── Log-transform thinking times ──────────────────────────────────────────
-    # Using log(x + LOG_OFFSET) to handle zero thinking times (near-instant
-    # moves that passed the premove filter). This is standard practice in
-    # reaction-time research (see Whelan 2008, "Effective Analysis of RT Data").
+   # No offset: filter 1 floors every retained time above the premove
+    # threshold, so log(0) cannot occur.
     chunk['log_last_book_time'] = np.log(chunk['last_book_thinking_time'] + LOG_OFFSET)
     chunk['log_first_oob_time'] = np.log(chunk['first_oob_thinking_time'] + LOG_OFFSET)
 
@@ -289,112 +298,122 @@ def filter_and_join(voc_lookup: dict) -> None:
 # PHASE 3: STRATIFIED SAMPLE
 # ==============================================================================
 
+
+
 def create_stratified_sample() -> None:
     """
-    Create a stratified random sample of SAMPLE_SIZE pairs from filtered_pairs.csv.
+    Build a stratified sample of SAMPLE_SIZE pairs from filtered_pairs.csv.
 
-    WHY SAMPLE:
-        The mixed-effects model in Script 05 requires inverting large matrices
-        proportional to the number of random effects (players). With 20M+
-        observations from 3-5M players, fitting a full model is infeasible
-        on a laptop and would take days. 1M pairs retains enormous statistical
-        power — Russek et al. 2025 published in Cognitive Science with a similar
-        scale — while running in hours.
+    Players contributing fewer than MIN_TRANSITIONS_PER_PLAYER pairs are
+    excluded here, so the exclusion applies to the dataset used by the
+    mixed-effects model and not only to the player-level aggregate.
 
-    WHY STRATIFIED:
-        A simple random sample from 20M pairs would proportionally represent
-        the rating band distribution (~42% Band 2, ~35% Band 3, <1% Band 5).
-        Band 5 (the highest-rated players, 2300+) is the scientifically most
-        interesting band for testing template theory predictions, but would be
-        severely underrepresented in a simple sample. Stratifying by rating_band
-        ensures each band has adequate representation for stable estimation.
-
-    Stratification: each band contributes floor(SAMPLE_SIZE / 5) pairs,
-    except the smallest band which may contribute its full count if smaller
-    than the target.
+    Selection within each band is systematic: every k-th qualifying row,
+    where k = band_count // target, starting from a seeded random offset.
+    Because filtered_pairs.csv inherits the chronological order of the
+    source PGN dump, taking the first N rows of each band would restrict
+    the sample to the earliest days of the month. Systematic selection
+    spans the full corpus.
     """
     log.info(f'Phase 3: Creating stratified sample ({SAMPLE_SIZE:,} pairs)...')
 
-    # Load full dataset to determine band sizes
-    # If this is too large for memory, read band counts only first
-    band_counts = {}
+    # ── Pass 1: pairs per player ─────────────────────────────────────────────
+    log.info('  Pass 1/3: counting pairs per player...')
+    player_counts = defaultdict(int)
     for chunk in pd.read_csv(FILTERED_PATH, chunksize=CHUNK_SIZE,
-                              usecols=['rating_band']):
-        for band, count in chunk['rating_band'].value_counts().items():
-            band_counts[band] = band_counts.get(band, 0) + count
+                             usecols=['player_username']):
+        for user, count in chunk['player_username'].value_counts().items():
+            player_counts[user] += count
 
-    log.info('Band distribution in filtered pairs:')
+    qualified = {u for u, n in player_counts.items()
+                 if n >= MIN_TRANSITIONS_PER_PLAYER}
+    log.info(f'    Players total:     {len(player_counts):,}')
+    log.info(f'    Players qualified: {len(qualified):,} '
+             f'(>= {MIN_TRANSITIONS_PER_PLAYER} pairs)')
+    log.info(f'    Players excluded:  {len(player_counts) - len(qualified):,}')
+
+    # ── Pass 2: qualifying rows per band ─────────────────────────────────────
+    log.info('  Pass 2/3: counting qualifying rows per band...')
+    band_counts = defaultdict(int)
+    for chunk in pd.read_csv(FILTERED_PATH, chunksize=CHUNK_SIZE,
+                             usecols=['player_username', 'rating_band']):
+        keep = chunk['player_username'].isin(qualified)
+        for band, count in chunk.loc[keep, 'rating_band'].value_counts().items():
+            band_counts[band] += count
+
+    if not band_counts:
+        log.warning('No qualifying rows found; sample not created.')
+        return
+
     total = sum(band_counts.values())
+    log.info('    Band distribution (qualifying rows only):')
     for band in sorted(band_counts):
-        pct = 100 * band_counts[band] / total if total > 0 else 0
-        log.info(f'  {band}: {band_counts[band]:>10,}  ({pct:.1f}%)')
+        log.info(f'      {band}: {band_counts[band]:>10,}  '
+                 f'({100 * band_counts[band] / total:.1f}%)')
 
-    n_bands    = len(band_counts)
-    per_band   = SAMPLE_SIZE // n_bands
+    per_band = SAMPLE_SIZE // len(band_counts)
+    targets = {b: min(per_band, n) for b, n in band_counts.items()}
 
-    # Actual target per band (capped at available pairs)
-    band_targets = {
-        band: min(per_band, count)
-        for band, count in band_counts.items()
-    }
+    log.info(f'    Target per band: {per_band:,} (capped at available)')
+    for band in sorted(band_counts):
+        log.info(f'      {band}: target={targets[band]:>8,}  '
+                 f'of {band_counts[band]:>10,} available')
 
-    log.info(f'Target per band: {per_band:,} (capped at available)')
-    log.info(f'Actual targets:  {band_targets}')
+    # ── Pass 3: systematic selection ─────────────────────────────────────────
+    # A row at position p within its band's sequence of N rows is selected iff
+    #   (p * T) // N  !=  ((p + 1) * T) // N
+    # This yields exactly T rows spaced evenly across the whole sequence,
+    # independent of whether N divides evenly by T.
+    log.info('  Pass 3/3: selecting rows...')
+    seen = {b: 0 for b in band_counts}
+    parts = {b: [] for b in band_counts}
+    taken = {b: 0 for b in band_counts}
 
-    # Sample rows per band using reservoir-style chunked sampling
-    # We track a reservoir of row indices per band
-    rng          = np.random.default_rng(RANDOM_SEED)
-    band_samples = {band: [] for band in band_counts}
-    band_seen    = {band: 0 for band in band_counts}
+    for chunk in pd.read_csv(FILTERED_PATH, chunksize=CHUNK_SIZE,
+                             low_memory=False):
+        chunk = chunk[chunk['player_username'].isin(qualified)]
+        if chunk.empty:
+            continue
 
-    for chunk in pd.read_csv(FILTERED_PATH, chunksize=CHUNK_SIZE, low_memory=False):
         for band in band_counts:
+            if taken[band] >= targets[band]:
+                continue
+
             band_chunk = chunk[chunk['rating_band'] == band]
             if band_chunk.empty:
                 continue
 
-            target = band_targets[band]
-            seen   = band_seen[band]
-            have   = len(band_samples[band])
+            n_total = band_counts[band]
+            t_target = targets[band]
 
-            if have < target:
-                # Can add more
-                need   = target - have
-                to_add = band_chunk.head(need) if len(band_chunk) <= need else \
-                         band_chunk.sample(min(need, len(band_chunk)), random_state=RANDOM_SEED)
-                band_samples[band].append(to_add)
-                band_seen[band] += len(band_chunk)
-            else:
-                # Reservoir replacement to ensure uniform sampling
-                for j in range(len(band_chunk)):
-                    k = seen + j + 1
-                    r = rng.integers(0, k)
-                    if r < target:
-                        # Replace row r in our sample with this new row
-                        flat_idx = r
-                        # (simplified: just mark for replacement; for a paper
-                        # the head() approach above is sufficient given large N)
-                        pass
-                band_seen[band] += len(band_chunk)
+            pos = np.arange(seen[band], seen[band] + len(band_chunk))
+            seen[band] += len(band_chunk)
 
-    # Concatenate samples
-    sample_parts = []
-    for band in band_counts:
-        if band_samples[band]:
-            sample_parts.append(pd.concat(band_samples[band], ignore_index=True))
+            hit = band_chunk[((pos * t_target) // n_total)
+                             != (((pos + 1) * t_target) // n_total)]
+            if hit.empty:
+                continue
 
-    if sample_parts:
-        sample = pd.concat(sample_parts, ignore_index=True)
-        sample = sample.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
-        sample.to_csv(SAMPLE_PATH, index=False)
-        log.info(f'Sample saved: {len(sample):,} rows → {SAMPLE_PATH}')
-        log.info('Band distribution in sample:')
-        for band in sorted(sample['rating_band'].unique()):
-            n = (sample['rating_band'] == band).sum()
-            log.info(f'  {band}: {n:>8,}')
-    else:
-        log.warning('No sample created — filtered pairs may be empty.')
+            room = t_target - taken[band]
+            if len(hit) > room:
+                hit = hit.iloc[:room]
 
+            parts[band].append(hit)
+            taken[band] += len(hit)
+
+    frames = [pd.concat(p, ignore_index=True) for p in parts.values() if p]
+    if not frames:
+        log.warning('No rows selected; sample not created.')
+        return
+
+    sample = pd.concat(frames, ignore_index=True)
+    sample = sample.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
+    sample.to_csv(SAMPLE_PATH, index=False)
+
+    log.info(f'  Sample saved: {len(sample):,} rows -> {SAMPLE_PATH}')
+    log.info('  Band distribution in sample:')
+    for band in sorted(sample['rating_band'].unique()):
+        log.info(f'    {band}: {(sample["rating_band"] == band).sum():>8,}')
     log.info('')
 
 
