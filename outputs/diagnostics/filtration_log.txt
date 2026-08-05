@@ -1,0 +1,148 @@
+Script 04 — Assemble Final Analysis Dataset
+Run: 2026-08-05, 10:17:35 – 12:02:44
+Code state: symmetric premove filter, LOG_OFFSET = 0.0, systematic stratified
+sampling, MIN_TRANSITIONS_PER_PLAYER applied during sampling.
+Corrected analysis pre-registered at https://osf.io/n6tkx/
+
+Config at run time:
+  Min transitions per player: 3
+  Sample size target:         1,000,000
+  Random seed:                42
+  Log offset:                 0.0
+
+VOC lookup loaded: 114,083 positions
+  (from stockfish_covariate.csv, generated with ucinewgame forced per
+   position and Threads = 1)
+
+
+================================================================
+FILTRATION LOG
+================================================================
+  Input boundary pairs:             22,868,995
+  Excluded (either_move_premove):    4,308,443
+  Excluded (voc_missing):                    0
+  Final filtered pairs:             18,560,552
+================================================================
+
+Premove exclusion rate: 18.84% of input pairs.
+No divide-by-zero warnings were emitted, confirming that no zero-second
+thinking times survived the filter.
+Zero pairs were lost to missing VOC, confirming FEN normalization is
+consistent across Scripts 02, 03 and 04.
+
+
+PLAYER-LEVEL FILTERING
+  Players total:                       760,600
+  Players qualified (>= 3 pairs):      514,502
+  Players excluded (< 3 pairs):        246,098
+
+Exclusion rate: 32.36% of players.
+
+
+BAND DISTRIBUTION — QUALIFYING ROWS IN filtered_pairs.csv
+  band_1:  3,493,771  (19.2%)
+  band_2:  6,732,784  (36.9%)
+  band_3:  6,522,162  (35.8%)
+  band_4:  1,363,067  ( 7.5%)
+  band_5:    115,688  ( 0.6%)
+
+
+STRATIFIED SAMPLE — analysis_sample.csv
+  Target per band: 200,000 (capped at available)
+
+  band_1:  200,000  of  3,493,771 available
+  band_2:  200,000  of  6,732,784 available
+  band_3:  200,000  of  6,522,162 available
+  band_4:  200,000  of  1,363,067 available
+  band_5:  115,688  of    115,688 available   (capacity-limited)
+
+  Total sample: 915,688 rows
+
+Band 5 is capacity-limited rather than cap-limited: every qualifying band 5
+pair is included.
+
+
+PLAYER-LEVEL SUMMARY — player_aggregated.csv
+  Band        N players    Mean dt   Median dt
+  band_1        133,003       2.10        1.60
+  band_2        193,390       2.02        1.42
+  band_3        149,843       2.01        1.27
+  band_4         33,992       2.46        1.43
+  band_5          4,274       2.84        1.87
+
+  Total players in aggregated dataset: 514,502
+
+
+================================================================
+SUMMARY STATISTICS
+================================================================
+NOTE ON SCOPE: Phase 5 reads the first 500,000 rows of
+filtered_pairs.csv, not analysis_sample.csv. Because filtered_pairs.csv
+inherits the chronological order of the source PGN dump, these rows are
+the earliest games of December 2024, and the band distribution below
+matches the population rather than the stratified sample. These figures
+describe the filtered corpus, not the dataset used in Script 05.
+
+Thinking time — last book move (seconds):
+  count   : 500,000
+  mean    : 4.265
+  std     : 7.145
+  min     : 1.000
+  25%     : 1.000
+  50%     : 2.000
+  75%     : 5.000
+  max     : 560.000
+
+Thinking time — first OOB move (seconds):
+  count   : 500,000
+  mean    : 6.059
+  std     : 9.479
+  min     : 1.000
+  25%     : 2.000
+  50%     : 3.000
+  75%     : 7.000
+  max     : 552.000
+
+Time delta (first_oob - last_book) (seconds):
+  count   : 500,000
+  mean    : 1.794
+  std     : 10.579
+  min     : -546.000
+  25%     : -1.000
+  50%     : 1.000
+  75%     : 3.000
+  max     : 550.000
+
+Minimum thinking time is 1.000 s on both sides. Lichess clock data has
+integer-second resolution, so with PREMOVE_THRESHOLD_SECONDS = 0.5 the
+filter operates as an exclusion of recorded-zero moves; no values exist
+between 0 and 1.
+
+VOC — last book positions:  mean 27.5   median 19.0   max 927.0
+VOC — first OOB positions:  mean 35.7   median 24.0   max 927.0
+
+Out-of-book positions are approximately 30% more complex by this measure.
+Any book-exit time cost must therefore be evaluated net of this
+difference, which is the purpose of the VOC covariate in Script 05.
+
+Rating band distribution (first 500K rows of filtered_pairs.csv):
+  band_1:   97,187  (19.4%)
+  band_2:  184,269  (36.9%)
+  band_3:  178,800  (35.8%)
+  band_4:   36,781  ( 7.4%)
+  band_5:    2,963  ( 0.6%)
+
+Raw, uncontrolled comparison (same 500K rows):
+  Mean last_book_time:  4.265 s
+  Mean first_oob_time:  6.059 s
+  Raw difference:      +1.794 s
+  Raw ratio:            1.421x
+
+This raw figure does not control for VOC and is not a test of H1. The
+pre-registered VOC-controlled estimate is produced by Script 05.
+
+
+OUTPUTS WRITTEN
+  data/processed/filtered_pairs.csv
+  data/processed/analysis_sample.csv
+  data/processed/player_aggregated.csv
