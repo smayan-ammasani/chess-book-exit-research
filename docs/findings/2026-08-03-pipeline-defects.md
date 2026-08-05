@@ -226,3 +226,29 @@ Retaining the old VOC table permits a direct empirical estimate, on this
 dataset rather than on a 180-position sample, of how much the transposition
 contamination actually mattered. That comparison belongs in the paper as a
 robustness check.
+
+### Measured on the full dataset (2026-08-04)
+
+The 180-position estimate above substantially understated the contamination.
+Measured across all 114,083 analysed positions (outputs/diagnostics/
+voc_robustness.txt), pre-registered robustness check 2:
+
+| quantity                                 | estimated | measured |
+|------------------------------------------|-----------|----------|
+| correlation (contaminated vs corrected)   | 0.878     | 0.485    |
+| implied reliability r^2                   | 0.771     | 0.235    |
+| control power lost                        | 22.9%     | 76.5%    |
+| mean shift (corrected - contaminated)     | -3.9 cp   | +16.2 cp |
+
+The contamination is systematic, not merely noisy: 74,898 positions were
+under-measured before the fix against 37,113 over-measured, and mean VOC rose
+from 32.01 to 48.21 cp once the transposition table was cleared per position.
+This matches the mechanism -- a warm hash lets the depth-1 search return a
+depth-15 result, collapsing |depth15 - depth1| toward zero.
+
+Contamination scales with the number of positions analysed and with the
+adjacency of similar positions in processing order. The small-sample estimate
+could not detect this because the transposition table never saturated.
+Absolute change: p50 = 16 cp, p90 = 49 cp, p99 = 354 cp, max = 910 cp.
+
+# RESOLVED
