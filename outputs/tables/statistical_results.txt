@@ -1,0 +1,145 @@
+STATISTICAL ANALYSIS RESULTS
+Chess Book-Exit Cognitive Switch Study
+Pre-registered hypotheses H1 and H2
+
+Significance codes:  *** p<0.001  ** p<0.01  * p<0.05  . p<0.10
+
+=================================================================
+DESCRIPTIVE STATISTICS (player-level, N = 514,502)
+=================================================================
+
+Band        N players  N pairs (mean)  Mean Δt (s)  Median Δt (s)  Mean log Δt
+--------------------------------------------------------------------------------
+band_1        133,003            26.2        2.096          1.600       0.2737
+band_2        193,390            34.7        2.016          1.422       0.3043
+band_3        149,843            43.9        2.011          1.272       0.3080
+band_4         33,992            39.6        2.461          1.426       0.3365
+band_5          4,274            26.8        2.839          1.867       0.3781
+
+Overall mean Δt:      2.072 s
+Overall median Δt:    1.415 s
+Pct players with Δt > 0: 79.1%
+
+=================================================================
+H1: BOOK-EXIT TIME COST (player-level Wilcoxon)
+=================================================================
+
+N players: 514,502
+Mean log Δt:   0.3002  (= 1.350x on raw scale)
+Median log Δt: 0.2907
+SD log Δt:     0.3983
+Pct > 0:       81.9%
+
+Wilcoxon signed-rank test (H0: median log Δt = 0, one-tailed):
+  W = 114687228681.0,  p = 0.00e+00  ***
+  Cohen's d = 0.7537  (large)
+
+Interpretation:
+  H1 CONFIRMED. Players take significantly longer on their
+  first out-of-book move than on their last book move.
+
+NOTE: This test uses player-level means (one observation per
+player), which eliminates within-player non-independence. The
+VOC-controlled result from the mixed-effects model (below)
+is the definitive test of H1 after complexity control.
+
+=================================================================
+H2: COST VARIATION WITH RATING (Kruskal-Wallis + Dunn's)
+=================================================================
+
+Kruskal-Wallis test across 5 rating bands, N = 514,502:
+  H(4) = 914.305,  p = 1.33e-196  ***
+  ε² = 0.0018  (small effect)
+
+Median log Δt by band:
+  band_1: median = 0.2743  (N = 133,003)
+  band_2: median = 0.2969  (N = 193,390)
+  band_3: median = 0.2897  (N = 149,843)
+  band_4: median = 0.3124  (N = 33,992)
+  band_5: median = 0.3573  (N = 4,274)
+
+Dunn's post-hoc test (Bonferroni-corrected p-values):
+                 band_1      band_2      band_3      band_4      band_5
+band_1                       0.000***      0.000***      0.000***      0.000***
+band_2                                   1.000       0.000***      0.000***
+band_3                                               0.000***      0.000***
+band_4                                                           0.000***
+band_5                                                                 
+
+Interpretation:
+  H2 (global test): Significant difference in book-exit
+  time cost across rating bands (Kruskal-Wallis, p < 0.05).
+  See Dunn's table and mixed-effects model below for
+  direction and pairwise significance.
+
+=================================================================
+MIXED-EFFECTS MODEL (VOC-controlled, N = 25,000 pairs)
+=================================================================
+
+Subsample size: 25,000 pairs (20,288 unique players)
+Band breakdown: band_1: 5000, band_2: 5000, band_3: 5000, band_4: 5000, band_5: 5000
+Long-format observations: 50,000
+
+Formula: log_thinking_time ~ is_oob + voc + C(rating_band, Treatment('band_3')) + is_oob:C(rating_band, Treatment('band_3'))
+Random effect: (1 | player_username)
+Reference band: band_3
+
+Fitting... (this may take several minutes)
+Converged with method: lbfgs
+
+--- Coefficient Table ---
+Predictor                                              Coef       SE      z/t          p
+----------------------------------------------------------------------------------------
+Intercept                                           -0.0000 2453549.7572   -0.000     1.0000   
+C(rating_band, Treatment('band_3'))[T.band_1]        0.1387   0.1426    0.973     0.3307   
+C(rating_band, Treatment('band_3'))[T.band_2]        0.1713   0.1003    1.707     0.0878  .
+C(rating_band, Treatment('band_3'))[T.band_4]       -0.0283   0.0759   -0.373     0.7092   
+C(rating_band, Treatment('band_3'))[T.band_5]       -0.0584   0.0920   -0.635     0.5254   
+is_oob                                               0.2903   0.0118   24.640     0.0000***
+is_oob:C(rating_band, Treatment('band_3'))[T.band_1]  -0.0217   0.0166   -1.304     0.1924   
+is_oob:C(rating_band, Treatment('band_3'))[T.band_2]   0.0188   0.0166    1.131     0.2579   
+is_oob:C(rating_band, Treatment('band_3'))[T.band_4]   0.0265   0.0166    1.592     0.1113   
+is_oob:C(rating_band, Treatment('band_3'))[T.band_5]   0.0807   0.0166    4.846     0.0000***
+voc                                                  0.0002   0.0001    2.436     0.0149  *
+Group Var                                            0.0000      nan      nan        nan   
+
+--- Key Effects ---
+
+H1 — is_oob coefficient:
+  β = 0.2903 (SE = 0.0118)
+  p = 0.0000  ***
+  Interpretation: on the log scale, the first OOB move takes
+  exp(0.2903) = 1.3368x longer than
+  the last book move, holding VOC and rating band constant.
+
+VOC covariate (complexity control):
+  β = 0.00018  (p = 0.0149  *)
+  A 1-unit increase in VOC (centipawns) corresponds to a
+  0.00018 increase in log(thinking_time).
+
+H2 — is_oob × rating_band interactions (relative to band_3):
+  band_1: Δβ = -0.0217  (total is_oob effect = 0.2686, p = 0.1924  )
+  band_2: Δβ = +0.0188  (total is_oob effect = 0.3091, p = 0.2579  )
+  band_3: [reference — is_oob effect = 0.2903]
+  band_4: Δβ = +0.0265  (total is_oob effect = 0.3168, p = 0.1113  )
+  band_5: Δβ = +0.0807  (total is_oob effect = 0.3710, p = 0.0000  ***)
+
+Variance components: Cannot predict random effects from singular covariance structure.
+
+=================================================================
+RAW-SCALE EFFECT SIZES (player-level, in seconds)
+=================================================================
+
+One-sample t-test: mean_time_delta vs 0
+  Mean Δt = 2.072 s  (95% CI: [2.059, 2.084])
+  t(514501) = 328.319,  p = 0.00e+00  ***
+  Cohen's d = 0.4577
+
+Raw means by rating band:
+  band_1: M = 2.096s  Mdn = 1.600s  SD = 4.464s  N = 133,003
+  band_2: M = 2.016s  Mdn = 1.422s  SD = 4.278s  N = 193,390
+  band_3: M = 2.011s  Mdn = 1.272s  SD = 4.599s  N = 149,843
+  band_4: M = 2.461s  Mdn = 1.426s  SD = 5.474s  N = 33,992
+  band_5: M = 2.839s  Mdn = 1.867s  SD = 5.995s  N = 4,274
+
+End of statistical results.
