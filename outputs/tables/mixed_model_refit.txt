@@ -1,0 +1,73 @@
+Script 05b: Mixed-effects model refit (H1, VOC-controlled)
+Pre-registration: https://osf.io/n6tkx/
+Seed: 42   d threshold: 0.2
+
+Loading analysis_sample.csv ...
+Loaded 915,688 pairs.
+
+Players in sample:                255,142
+Players with >= 3 pairs:          93,737
+
+Players selected per band:
+  band_1:  1,500 of   24,004 eligible
+  band_2:  1,500 of   24,319 eligible
+  band_3:  1,500 of   24,615 eligible
+  band_4:  1,500 of   15,838 eligible
+  band_5:  1,500 of    4,961 eligible
+
+Pairs selected:                   45,332
+Players in model:                 7,500
+Pairs per player: mean 6.04  min 3  max 10
+Long-format observations:         90,664
+
+Formula: log_thinking_time ~ is_oob + voc + C(rating_band, Treatment('band_3')) + is_oob:C(rating_band, Treatment('band_3'))
+Random effect: (1 | player_username)
+
+Fitting mixed model...
+  lbfgs   FAILED: LinAlgError: Singular matrix
+  powell  converged=True  GroupVar=0.158458  singular=False
+
+==========================================================================
+MODEL: Mixed-effects (statsmodels MixedLM, powell)
+==========================================================================
+
+is_oob coefficient:
+  beta                    = 0.2837
+  SE                      = 0.0127
+  p                       = 1.920e-110
+  multiplicative effect   = 1.3280x
+
+Variance components:
+  residual variance       = 0.6586  (SD 0.8115)
+  between-player variance = 0.1585
+
+Cohen's d (registered: beta / residual SD)
+  d                       = 0.3496
+  d vs total SD (context) = 0.3138
+
+VOC covariate:
+  beta                    = 0.000439  (p = 4.017e-16)
+  book/OOB VOC gap        = 6.96 cp
+  gap explains            = 0.00305 log units (1.08% of the is_oob effect)
+
+--------------------------------------------------------------------------
+PRE-REGISTERED DECISION RULE FOR H1
+--------------------------------------------------------------------------
+  Criterion: is_oob positive AND d >= 0.2
+  Observed:  beta = +0.2837,  d = 0.3496
+
+  H1 SUPPORTED.
+
+--------------------------------------------------------------------------
+is_oob x rating_band interactions (supplementary; the registered
+H2 test is the player-level Kruskal-Wallis in Script 05)
+--------------------------------------------------------------------------
+  band_1: total is_oob effect = +0.2758
+  band_2: total is_oob effect = +0.2823
+  band_3: total is_oob effect = +0.2837  [reference]
+  band_4: total is_oob effect = +0.3282
+  band_5: total is_oob effect = +0.3702
+
+  Monotonically INCREASING across bands (opposite to H2).
+
+Saved to: C:\Users\Smayan Ammasani\Documents\GitHub\chess-book-exit-research\outputs\tables\mixed_model_refit.txt
