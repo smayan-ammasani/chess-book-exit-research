@@ -72,6 +72,31 @@ from config import (
     MAX_GAMES_TO_PARSE,
 )
 
+# ── Transition-window extraction ─────────────────────────────────────────────
+# Window is expressed in the player's OWN moves, not absolute plies.
+# 0 = first out-of-book move; negative = still in book.
+WINDOW_BEFORE = -5
+WINDOW_AFTER  = 10
+
+# Writing the full window for all 22.8M boundary pairs would produce roughly
+# 365M rows (30-40 GB). Sample instead: strides below target about 200,000
+# player-games per band, derived from the band counts measured on the previous
+# run (band_1 4,597,238 / band_2 8,479,639 / band_3 8,010,394 /
+# band_4 1,641,301 / band_5 140,423). Band 5 is taken in full.
+WINDOW_STRIDES = {
+    'band_1': 22,
+    'band_2': 42,
+    'band_3': 40,
+    'band_4': 8,
+    'band_5': 1,
+}
+
+WINDOW_CSV_COLUMNS = [
+    'game_id', 'player_color', 'player_rating', 'rating_band',
+    'player_username', 'ply_at_exit', 'relative_move', 'absolute_ply',
+    'thinking_time', 'is_premove', 'in_book', 'move_uci', 'time_control',
+]
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -92,6 +117,7 @@ PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 DOWNLOAD_PATH = RAW_DIR       / f'lichess_db_standard_rated_{ANALYSIS_MONTH}.pgn.zst'
 BOOK_CSV_PATH = CORPUS_DIR    / 'book_sequences.csv'
 OUTPUT_PATH   = PROCESSED_DIR / 'boundary_pairs.csv'
+WINDOW_OUTPUT_PATH = PROCESSED_DIR / 'transition_window.csv'
 CHECKPOINT_A  = PROCESSED_DIR / 'script02_checkpoint_a.pkl'
 CHECKPOINT_B  = PROCESSED_DIR / 'script02_checkpoint_b.pkl'
 
@@ -330,6 +356,73 @@ def game_passes_filter(headers: dict):
     return True, ''
 
 
+import zlib
+
+
+def _in_window_sample(game_id: str, color_name: str, band: str) -> bool:
+    """
+    Deterministic sampling gate.
+
+    Uses a CRC32 of the game/colour key rather than a running counter, so the
+    same player-games are selected regardless of how many times the run is
+    interrupted and resumed from a checkpoint. Python's built-in hash() is
+    randomised per process for strings and would NOT be reproducible here.
+    """
+    stride = WINDOW_STRIDES.get(band, 1)
+    if stride <= 1:
+        return True
+    return zlib.crc32(f'{game_id}:{color_name}'.encode()) % stride == 0
+
+
+def extract_window_rows(game_id, color_name, rating, band, username,
+                        player_plies, first_oob_ply, thinking_times,
+                        book_at_ply, moves_uci, tc_str) -> list:
+    """
+    Build long-format rows for moves WINDOW_BEFORE..WINDOW_AFTER around the
+    book exit, in this player's own move sequence.
+
+    Positions that fall outside the game (before move 1, or after the game
+    ended) are simply absent -- the window is ragged by design, and the
+    analysis must handle unbalanced panels rather than assume 16 rows per
+    player-game.
+    """
+    if not _in_window_sample(game_id, color_name, band):
+        return []
+
+    try:
+        exit_idx = player_plies.index(first_oob_ply)
+    except ValueError:
+        return []
+
+    rows = []
+    for rel in range(WINDOW_BEFORE, WINDOW_AFTER + 1):
+        idx = exit_idx + rel
+        if idx < 0 or idx >= len(player_plies):
+            continue
+
+        p = player_plies[idx]
+        t = thinking_times[p]
+        if t is None or t < 0:
+            continue
+
+        rows.append({
+            'game_id':         game_id,
+            'player_color':    color_name,
+            'player_rating':   rating,
+            'rating_band':     band,
+            'player_username': username,
+            'ply_at_exit':     first_oob_ply + 1,
+            'relative_move':   rel,
+            'absolute_ply':    p + 1,
+            'thinking_time':   round(t, 3),
+            'is_premove':      t <= PREMOVE_THRESHOLD_SECONDS,
+            'in_book':         book_at_ply[p],
+            'move_uci':        moves_uci[p],
+            'time_control':    tc_str,
+        })
+
+    return rows
+
 # ==============================================================================
 # GAME PROCESSING
 # ==============================================================================
@@ -378,14 +471,14 @@ def process_game(game: chess.pgn.Game, headers: dict, book_set: set) -> list:
         white_rating = int(headers.get('WhiteElo', 0))
         black_rating = int(headers.get('BlackElo', 0))
     except (ValueError, TypeError):
-        return []
+        return [], []
 
     white_username = headers.get('White', '')
     black_username = headers.get('Black', '')
 
     base_time, increment = parse_time_control(tc_str)
     if base_time == 0:
-        return []
+        return [], []
 
     # ── Walk through all moves ────────────────────────────────────────────────
     board            = game.board()
@@ -438,10 +531,11 @@ def process_game(game: chess.pgn.Game, headers: dict, book_set: set) -> list:
 
     total_plies = len(moves_uci)
     if total_plies < MIN_PLIES_FOR_INCLUSION:
-        return []
+        return [], []
 
     # ── Find boundary pair for each player ───────────────────────────────────
     records = []
+    window_records = []
 
     for is_white_player, color_name, rating, username in [
         (True,  'white', white_rating, white_username),
@@ -508,7 +602,12 @@ def process_game(game: chess.pgn.Game, headers: dict, book_set: set) -> list:
             'first_oob_fen':            fens_before[first_oob_ply],
         })
 
-    return records
+        window_records.extend(extract_window_rows(
+            game_id, color_name, rating, band, username,
+            player_plies, first_oob_ply, thinking_times,
+            book_at_ply, moves_uci, tc_str))
+
+    return records, window_records
 
 
 # ==============================================================================
@@ -672,12 +771,16 @@ def run_processing(book_set: set, start_games_read: int,
     dctx = zstd.ZstdDecompressor()
 
     with open(DOWNLOAD_PATH, 'rb') as compressed_file, \
-         open(OUTPUT_PATH, csv_mode, newline='', encoding='utf-8') as csv_file:
+         open(OUTPUT_PATH, csv_mode, newline='', encoding='utf-8') as csv_file, \
+         open(WINDOW_OUTPUT_PATH, csv_mode, newline='', encoding='utf-8') as win_file:
 
         writer = csv.DictWriter(csv_file, fieldnames=CSV_COLUMNS)
         if csv_mode == 'w':
             writer.writeheader()
 
+        window_writer = csv.DictWriter(win_file, fieldnames=WINDOW_CSV_COLUMNS)
+        if csv_mode == 'w':
+            window_writer.writeheader()
         with dctx.stream_reader(compressed_file) as zst_reader:
             text_stream = io.TextIOWrapper(zst_reader, encoding='utf-8', errors='replace')
 
@@ -716,7 +819,7 @@ def run_processing(book_set: set, start_games_read: int,
 
                     # ── Process ───────────────────────────────────────────────
                     try:
-                        pairs = process_game(game, headers, book_set)
+                        pairs, window_rows = process_game(game, headers, book_set)
                     except Exception as exc:
                         log.debug(f'Error processing {headers.get("Site", "?")}: {exc}')
                         exclusion_counts['processing_error'] = \
@@ -732,6 +835,8 @@ def run_processing(book_set: set, start_games_read: int,
                     for pair in pairs:
                         writer.writerow(pair)
                         records_written += 1
+                    for wrow in window_rows:
+                        window_writer.writerow(wrow)
 
                     pbar.set_postfix(
                         {'kept': f'{games_kept:,}', 'pairs': f'{records_written:,}'},
@@ -741,11 +846,13 @@ def run_processing(book_set: set, start_games_read: int,
                     # ── Checkpoint ────────────────────────────────────────────
                     if games_read % CHECKPOINT_INTERVAL == 0:
                         csv_file.flush()   # ensure rows are on disk before checkpoint
+                        win_file.flush()   # ensure rows are on disk before checkpoint
                         save_checkpoint(games_read, records_written,
                                         games_kept, exclusion_counts)
 
         # Final flush and checkpoint after the file ends
         csv_file.flush()
+        win_file.flush() 
         save_checkpoint(games_read, records_written, games_kept, exclusion_counts)
 
     # ── Filtration log ────────────────────────────────────────────────────────
