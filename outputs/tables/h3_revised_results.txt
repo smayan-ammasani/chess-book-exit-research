@@ -1,0 +1,66 @@
+Script 06b: H3-revised -- immediate execution as a
+discrete-transition signal
+Pre-registration: https://osf.io/n6tkx/  (Section 5.3)
+
+Streaming boundary_pairs.csv (4.90 GB) ...
+  5,000,000 rows processed...
+  10,000,000 rows processed...
+  15,000,000 rows processed...
+  20,000,000 rows processed...
+Total rows: 22,868,995
+Rows counted: 22,868,995
+No missing values in any of the three columns.
+
+====================================================================================================
+PREMOVE RATES BY BAND (unfiltered boundary_pairs.csv)
+====================================================================================================
+band                n   book rate    oob rate     ratio        z     p (raw)    p (Holm)
+----------------------------------------------------------------------------------------------------
+band_1      4,597,238      20.79%       2.49%      8.34   864.92    0.00e+00    0.00e+00
+band_2      8,479,639      16.89%       3.31%      5.10   927.62    0.00e+00    0.00e+00
+band_3      8,010,394      14.99%       4.33%      3.46   721.75    0.00e+00    0.00e+00
+band_4      1,641,301      12.79%       4.69%      2.72   259.62    0.00e+00    0.00e+00
+band_5        140,423      11.83%       5.33%      2.22    61.44    0.00e+00    0.00e+00
+
+====================================================================================================
+SUPPLEMENTARY: McNemar's test (paired binary data)
+====================================================================================================
+Not in the pre-registration. Book/OOB premove status is measured on
+the same pair, so this is the statistically matched test for the
+registered z-test's independent-samples assumption. Added before
+any result was observed.
+
+band           both   book only    oob only   statistic     p-value
+----------------------------------------------------------------------------------------------------
+band_1       55,700     899,880      58,831   737825.83    0.00e+00
+band_2      116,137   1,315,753     164,694   894955.73    0.00e+00
+band_3      132,272   1,068,132     214,767   567644.15    0.00e+00
+band_4       26,450     183,392      50,560    75417.50    0.00e+00
+band_5        2,224      14,385       5,266     4230.72    0.00e+00
+
+book_only > oob_only in every band would mean book-side premoves
+outnumber OOB-side premoves even among pairs discordant on the
+other dimension -- the same direction as the registered test,
+via a different, paired-appropriate mechanism.
+
+====================================================================================================
+PRE-REGISTERED DECISION RULE FOR H3-REVISED
+====================================================================================================
+Criterion: book proportion > OOB proportion in ALL five bands,
+AND ratio >= 2.0 in every band.
+
+  band_1: book 20.79% vs oob 2.49%  [OK]   ratio 8.34  [OK]
+  band_2: book 16.89% vs oob 3.31%  [OK]   ratio 5.10  [OK]
+  band_3: book 14.99% vs oob 4.33%  [OK]   ratio 3.46  [OK]
+  band_4: book 12.79% vs oob 4.69%  [OK]   ratio 2.72  [OK]
+  band_5: book 11.83% vs oob 5.33%  [OK]   ratio 2.22  [OK]
+
+H3-REVISED SUPPORTED.
+
+Holm-corrected significance: 5 / 5 bands reject at alpha = 0.05.
+Note: with n in the hundreds of thousands to millions per band, the
+z-test will reach significance for effects too small to matter. The
+ratio criterion above, not the p-value, is what decides this
+hypothesis, consistent with H1 and H2.
+
+Saved to: C:\Users\Smayan Ammasani\Documents\GitHub\chess-book-exit-research\outputs\tables\h3_revised_results.txt
