@@ -1,0 +1,40 @@
+Ply-trend baseline probe
+Approximate check on whether the book-exit jump exceeds the
+normal move-to-move increase in thinking time.
+
+Streaming boundary_pairs.csv (4.90 GB) ...
+  5,000,000 rows read, 3,246,563 kept...
+  10,000,000 rows read, 6,496,720 kept...
+  15,000,000 rows read, 9,741,001 kept...
+  20,000,000 rows read, 12,981,881 kept...
+Total rows: 22,868,995   kept after premove exclusion: 14,841,944
+
+========================================================================================
+PER-BAND: cross-sectional ply trend vs observed boundary jump
+========================================================================================
+All quantities in log(seconds).
+
+band       cells           n   slope/ply  baseline/move  observed jump    ratio
+----------------------------------------------------------------------------------------
+band_1        12   2,419,671     0.03073        0.06146        0.32226      5.2
+band_2        15   5,455,492     0.04607        0.09214        0.32784      3.6
+band_3        17   5,595,508     0.04239        0.08477        0.31880      3.8
+band_4        19   1,255,623     0.02611        0.05223        0.34368      6.6
+band_5        16     111,295     0.01009        0.02019        0.38274     19.0
+
+========================================================================================
+INTERPRETATION
+========================================================================================
+Smallest jump-to-baseline ratio across bands: 3.6x
+
+The boundary jump exceeds the ply trend, but not by a wide
+margin in every band. Report this probe as a limitation and
+treat the full curve extraction as a priority.
+
+CAVEAT: this trend is cross-sectional. Games leaving book at ply 30
+may differ systematically from games leaving at ply 10, so the slope
+conflates "later plies are slower" with "longer-book games differ".
+It bounds the concern; it does not resolve it. Only a within-game
+window (moves -5 to +10) measures the actual trend.
+
+Saved to: C:\Users\Smayan Ammasani\Documents\GitHub\chess-book-exit-research\outputs\diagnostics\ply_trend_probe.txt
