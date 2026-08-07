@@ -308,7 +308,7 @@ def run_analysis(all_fens: list, results: dict) -> dict:
                     board      = make_board(fen)
                     results[fen] = analyze_position(board, engine)
                 except Exception as e:
-                    log.debug(f'Failed on FEN ({fen}): {e}')
+                    log.warning(f'Failed on FEN ({fen}): {e}')
                     results[fen] = {'voc': 0.0, 'eval_depth1': 0, 'eval_depth15': 0}
 
                 pbar.update(1)
