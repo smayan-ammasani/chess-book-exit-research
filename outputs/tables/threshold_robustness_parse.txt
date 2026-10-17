@@ -1,0 +1,56 @@
+Script 12, stage 1: parse
+Thresholds (10, 5, 20); players sampled 1 in 10 by CRC32 of username
+PGN source: C:\smayantransfer\chess-book-exit-research\data\raw\lichess_db_standard_rated_2024-12.pgn.zst
+book_sequences.csv: 66,853 sequences, lowest stored count 3
+  sequences with count >=  5: 32,876
+  sequences with count >= 10: 14,533
+  sequences with count >= 20: 6,963
+  longest sequence: 40 plies
+
+PARSE LOG
+games read: 96,587,411   (Script 02 read 96,587,411)
+game-level filter results (compare the exclusion counts with the Script 02 log):
+  not_rapid                           83,626,833
+  passed_filter_not_sampled            9,919,522
+  passed_filter_sampled                2,319,931
+  time_control_excluded                  649,510
+  no_rating_diff                          69,940
+  abnormal_termination                     1,675
+
+Games counted as not_rapid although their Event header mentions Rapid
+(Script 02 keeps only the exact header "Rated Rapid game"):
+  Rated Rapid tournament                                           1,092,899
+  Rapid swiss                                                        218,660
+games fully parsed: 2,319,931
+self-checks against your process_game(): 46,204, all matched
+rows written: 6,849,319
+
+Per-band outcome for each sampled player-game, by threshold.
+This is also the per-band missingness the registration asks for (threshold 10).
+
+threshold 10
+band              game_too_short  left_book_on_first_mov           negative_time                    pair
+band_1          61,878 (12.2%)         4,854 ( 1.0%)           153 ( 0.0%)       440,216 (86.8%)
+band_2          51,630 ( 5.7%)         5,604 ( 0.6%)           195 ( 0.0%)       844,420 (93.6%)
+band_3          25,953 ( 3.1%)         4,166 ( 0.5%)           146 ( 0.0%)       811,344 (96.4%)
+band_4           3,178 ( 1.8%)           462 ( 0.3%)            22 ( 0.0%)       173,931 (97.9%)
+band_5             216 ( 1.6%)            29 ( 0.2%)             3 ( 0.0%)        13,623 (98.2%)
+
+threshold 5
+band              game_too_short  left_book_on_first_mov           negative_time         never_left_book                    pair
+band_1          61,878 (12.2%)         2,604 ( 0.5%)           152 ( 0.0%)             0 ( 0.0%)       442,467 (87.3%)
+band_2          51,630 ( 5.7%)         3,023 ( 0.3%)           195 ( 0.0%)             0 ( 0.0%)       847,001 (93.9%)
+band_3          25,953 ( 3.1%)         2,308 ( 0.3%)           140 ( 0.0%)             0 ( 0.0%)       813,208 (96.6%)
+band_4           3,178 ( 1.8%)           236 ( 0.1%)            21 ( 0.0%)             1 ( 0.0%)       174,157 (98.1%)
+band_5             216 ( 1.6%)            17 ( 0.1%)             3 ( 0.0%)             1 ( 0.0%)        13,634 (98.3%)
+
+threshold 20
+band              game_too_short  left_book_on_first_mov           negative_time                    pair
+band_1          61,878 (12.2%)         7,312 ( 1.4%)           153 ( 0.0%)       437,758 (86.3%)
+band_2          51,630 ( 5.7%)         8,711 ( 1.0%)           210 ( 0.0%)       841,298 (93.3%)
+band_3          25,953 ( 3.1%)         6,436 ( 0.8%)           157 ( 0.0%)       809,063 (96.1%)
+band_4           3,178 ( 1.8%)           794 ( 0.4%)            23 ( 0.0%)       173,598 (97.8%)
+band_5             216 ( 1.6%)            50 ( 0.4%)             4 ( 0.0%)        13,601 (98.1%)
+
+Saved: C:\smayantransfer\chess-book-exit-research\data\processed\threshold_pairs.csv
+Next: python scripts/12_threshold_robustness.py voc

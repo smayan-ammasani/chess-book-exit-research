@@ -137,8 +137,10 @@ PREMOVE_THRESHOLD_SECONDS = 0.5
 # A large gap means additional thinking would substantially change the evaluation —
 # the position objectively rewards deeper calculation.
 #
-# This follows Russek et al. (2025, Cognitive Science) who used the same measure
-# across 12M+ Lichess games. We compute it only at our two boundary positions
+# This is related to, but not the same as, the measure in Russek et al. (2025,
+# Cognitive Science), who compared the deep-search value of the best move with
+# that of the move a depth-1 search would choose, across 12M+ Lichess games.
+# We compute it only at our two boundary positions
 # per game (not every move), keeping compute requirements manageable.
 #
 STOCKFISH_PATH = "./stockfish/stockfish.exe"   # Update if binary is elsewhere

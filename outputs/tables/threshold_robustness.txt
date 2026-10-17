@@ -1,0 +1,59 @@
+Script 12, stage 3: robustness check 1 (book thresholds)
+Registered at https://osf.io/n6tkx/ : "Book frequency threshold at 5 and 20,
+alongside the primary value of 10."
+Players sampled: 1 in 10 (all of their games). Minimum pairs 3. Exit limit ply 40.
+VOC lookup: 147,253 positions (16 carry the zero failure code)
+
+--- threshold 10 ---
+pairs 2,283,534; premove pairs removed 433,824; missing VOC 0; exits after ply 40 0; pairs of players under 3 pairs 33,246
+filtered pairs 1,816,464; sample 754,992 (band_1 200,000, band_2 200,000, band_3 200,000, band_4 143,955, band_5 11,037)
+mean exit ply 7.57; mean VOC book 27.6, out of book 35.6
+H1 (registered model): beta +0.2944 (95% CI 0.2919 to 0.2970), d 0.3718 -> rule MET
+  without VOC: beta +0.2974, d 0.3755
+  without 402 zero-coded pairs: beta +0.2945, d 0.3719
+  corrected for untimed first moves (66,657 pairs with exit ply <= 4 removed): beta +0.3160 (95% CI 0.3134 to 0.3185), d 0.3970 -> rule MET
+
+--- threshold 5 ---
+pairs 2,290,467; premove pairs removed 368,900; missing VOC 0; exits after ply 40 0; pairs of players under 3 pairs 33,168
+filtered pairs 1,888,399; sample 758,902 (band_1 200,000, band_2 200,000, band_3 200,000, band_4 147,655, band_5 11,247)
+mean exit ply 7.92; mean VOC book 28.8, out of book 36.4
+H1 (registered model): beta +0.2910 (95% CI 0.2885 to 0.2936), d 0.3627 -> rule MET
+  without VOC: beta +0.2941, d 0.3664
+  without 443 zero-coded pairs: beta +0.2911, d 0.3628
+  corrected for untimed first moves (50,734 pairs with exit ply <= 4 removed): beta +0.3063 (95% CI 0.3037 to 0.3089), d 0.3801 -> rule MET
+
+--- threshold 20 ---
+pairs 2,275,318; premove pairs removed 498,738; missing VOC 0; exits after ply 40 0; pairs of players under 3 pairs 33,293
+filtered pairs 1,743,287; sample 750,443 (band_1 200,000, band_2 200,000, band_3 200,000, band_4 139,654, band_5 10,789)
+mean exit ply 7.27; mean VOC book 26.5, out of book 35.1
+H1 (registered model): beta +0.2901 (95% CI 0.2875 to 0.2926), d 0.3709 -> rule MET
+  without VOC: beta +0.2929, d 0.3745
+  without 316 zero-coded pairs: beta +0.2901, d 0.3709
+  corrected for untimed first moves (83,862 pairs with exit ply <= 4 removed): beta +0.3211 (95% CI 0.3185 to 0.3236), d 0.4082 -> rule MET
+
+==============================================================================
+CHECK: threshold 10 pairs here versus boundary_pairs.csv
+==============================================================================
+Both sides: sampled players, premove pairs removed, exits after ply 40 removed,
+before the 3-pair rule.
+pairs in boundary_pairs.csv: 1,849,710;  pairs here: 1,849,710
+in both files: 1,849,710; identical exit ply and times: 1,849,710
+only in boundary_pairs.csv: 0;  only here: 0
+PASS: identical pairs. The re-parse reproduces the main pipeline.
+
+==============================================================================
+SUMMARY: robustness check 1
+==============================================================================
+ threshold    filtered    sample   players     beta              95% CI       d  rule
+        10   1,816,464   754,992    48,873   0.2944    [0.2919, 0.2970]  0.3718  MET
+         5   1,888,399   758,902    49,148   0.2910    [0.2885, 0.2936]  0.3627  MET
+        20   1,743,287   750,443    48,314   0.2901    [0.2875, 0.2926]  0.3709  MET
+
+Threshold 10 on this 1-in-10 player sample should land close to the main result from Script 10.
+
+Corrected for untimed first moves (pairs with exit ply <= 4 removed; compare with Script 13):
+ threshold    filtered    sample   players     beta              95% CI       d  rule
+        10   1,750,017   753,757    47,818   0.3160    [0.3134, 0.3185]  0.3970  MET
+         5   1,837,862   758,055    48,418   0.3063    [0.3037, 0.3089]  0.3801  MET
+        20   1,659,698   748,794    47,186   0.3211    [0.3185, 0.3236]  0.4082  MET
+Saved: outputs/tables/threshold_robustness.txt

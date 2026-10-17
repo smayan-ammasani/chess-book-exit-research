@@ -13,7 +13,10 @@ PURPOSE
     — the position objectively rewards deeper calculation. A small VOC means
     the position is clear even at shallow analysis.
 
-    This covariate follows Russek et al. (2025, Cognitive Science) exactly.
+    This covariate is related to, but not the same as, the measure in
+    Russek et al. (2025, Cognitive Science), who compared the deep-search
+    value of the best move with the deep-search value of the move a depth-1
+    search would choose.
     By including VOC as a control variable in the mixed-effects model
     (Script 05), this paper isolates the book-exit memory cost from the
     generic position difficulty cost — the key methodological contribution
