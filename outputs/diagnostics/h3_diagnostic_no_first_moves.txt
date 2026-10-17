@@ -1,0 +1,81 @@
+Loading data\processed\analysis_sample.csv ...
+Loaded 915,688 pairs.
+Removed 29,584 pairs whose last in-book move was the player's first move (exit ply 3 or 4),
+which Lichess does not time. Pairs kept: 886,104. The 3-pair minimum is not re-applied here.
+
+====================================================================================================
+SECTION 1 - DISTRIBUTION SHAPE INSIDE THE FITTING WINDOW [0.5, 120.0] SECONDS
+====================================================================================================
+band      cond     n_kept     mean       sd     SKEW   ex-Gaussian verdict
+----------------------------------------------------------------------------------------------------
+band_1    book    182,576     5.08     6.58     5.21   INFEASIBLE (MOM will clamp)
+band_1    oob     182,530     7.12     8.64     4.11   INFEASIBLE (MOM will clamp)
+
+band_2    book    193,137     4.19     6.09     6.16   INFEASIBLE (MOM will clamp)
+band_2    oob     193,092     5.99     8.08     4.63   INFEASIBLE (MOM will clamp)
+
+band_3    book    196,519     3.67     5.77     7.14   INFEASIBLE (MOM will clamp)
+band_3    oob     196,451     5.29     7.82     5.26   INFEASIBLE (MOM will clamp)
+
+band_4    book    198,454     3.69     6.01     7.11   INFEASIBLE (MOM will clamp)
+band_4    oob     198,333     5.64     8.96     5.08   INFEASIBLE (MOM will clamp)
+
+band_5    book    115,084     4.04     6.58     6.41   INFEASIBLE (MOM will clamp)
+band_5    oob     115,000     6.49    10.11     4.53   INFEASIBLE (MOM will clamp)
+
+====================================================================================================
+SECTION 2 - TRUNCATION ASYMMETRY: HOW MUCH DOES THE 0.5s FLOOR REMOVE FROM EACH CONDITION?
+====================================================================================================
+band        book <0.5s    oob <0.5s      ratio     book >120s    oob >120s
+----------------------------------------------------------------------------------------------------
+band_1           0.00%        0.00%       inf          0.03%        0.06%
+band_2           0.00%        0.00%       inf          0.04%        0.06%
+band_3           0.00%        0.00%       inf          0.04%        0.07%
+band_4           0.00%        0.00%       inf          0.04%        0.10%
+band_5           0.00%        0.00%       inf          0.04%        0.11%
+
+Interpretation: a large book/oob ratio in the "<0.5s" columns means the
+fitting filter removes far more book moves than out-of-book moves, so any
+book-vs-oob comparison inside the window is between unequally truncated
+samples. Note also whether the book percentage falls as rating rises --
+that trend is itself a directly observable discrete-switch signal.
+
+====================================================================================================
+SECTION 3 - WINDOW SENSITIVITY: SAMPLE SKEWNESS AT DIFFERENT UPPER CUTOFFS
+====================================================================================================
+band      cond        <=15s       <=30s       <=60s      <=120s
+----------------------------------------------------------------------------------------------------
+band_1    book         1.50        2.39        3.58        5.21
+band_1    oob          1.06        1.78        2.77        4.11
+
+band_2    book         1.90        2.88        4.27        6.16
+band_2    oob          1.36        2.12        3.22        4.63
+
+band_3    book         2.21        3.34        4.89        7.14
+band_3    oob          1.61        2.43        3.63        5.26
+
+band_4    book         2.27        3.36        4.95        7.11
+band_4    oob          1.64        2.44        3.56        5.08
+
+band_5    book         2.09        3.07        4.45        6.41
+band_5    oob          1.48        2.19        3.15        4.53
+
+A cutoff whose skewness sits comfortably below 2.0 would make the
+ex-Gaussian fittable -- but changing the window to obtain a fittable
+result is a researcher degree of freedom. If the window is narrowed,
+the choice and its rationale must be stated explicitly in Methods,
+and results at the original window reported alongside.
+
+====================================================================================================
+SUMMARY
+====================================================================================================
+Fits attempted:            10
+Above skewness ceiling:    10 / 10
+
+EVERY condition exceeds the ex-Gaussian skewness ceiling.
+-> No parameterisation of the ex-Gaussian can describe these data,
+   and no fitting method recovers this. Method-of-moments clamps;
+   maximum likelihood degenerates toward a shifted exponential.
+   H3 needs a different operationalisation -- the truncation
+   asymmetry in Section 2 is the strongest candidate already in hand.
+

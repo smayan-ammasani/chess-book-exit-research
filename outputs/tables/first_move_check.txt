@@ -1,0 +1,192 @@
+Script 13: Untimed first moves (check and corrected analyses)
+Pre-registration: https://osf.io/n6tkx/
+Affected pairs: ply_at_exit <= 4, meaning the player's last in-book move
+was their first move of the game, which Lichess does not time.
+
+Reading boundary_pairs.csv (one pass) ...
+rows read: 22,868,995
+
+==============================================================================
+1. CHECK: is a first move's recorded time just the increment?
+==============================================================================
+If Lichess does not time first moves, every affected pair should show a book-move
+time exactly equal to the increment (0 s in games without one). Other pairs show
+that value only when a move really took exactly that long.
+
+pairs                                        count   book time = increment   out-of-book time = increment
+book move = player's first move          3,385,330                  99.96%                          6.34%
+all other pairs                         19,483,665                   6.41%                          4.50%
+
+Affected pairs by time-control type:
+  no increment (x+0)    2,687,935 pairs; book time = increment  99.96%; book move counted as near-instant  99.96%
+  with increment          697,395 pairs; book time = increment  99.95%; book move counted as near-instant   0.00%
+
+CONFIRMED: 99.96% of affected pairs carry the increment as the book move's time. These times are not measurements.
+
+==============================================================================
+2. HOW MANY PAIRS ARE AFFECTED (all boundary pairs)
+==============================================================================
+band           pairs   affected   share  in x+0 games   book near-instant from affected
+band_1     4,597,238  1,151,661   25.1%       831,135        830,680 of 955,580 (86.9%)
+band_2     8,479,639  1,301,131   15.3%     1,054,551    1,054,205 of 1,431,890 (73.6%)
+band_3     8,010,394    828,227   10.3%       709,513      709,368 of 1,200,404 (59.1%)
+band_4     1,641,301     99,815    6.1%        88,910         88,881 of 209,842 (42.4%)
+band_5       140,423      4,496    3.2%         3,826           3,825 of 16,609 (23.0%)
+
+==============================================================================
+3. H3-REVISED: registered versus corrected
+==============================================================================
+
+Registered (should match Script 10):
+band           pairs  book rate  OOB rate   ratio    95% CI (clustered by player)
+band_1     4,597,238     20.79%     2.49%    8.34                    [8.16, 8.53]
+band_2     8,479,639     16.89%     3.31%    5.10                    [5.01, 5.18]
+band_3     8,010,394     14.99%     4.33%    3.46                    [3.41, 3.51]
+band_4     1,641,301     12.79%     4.69%    2.72                    [2.66, 2.80]
+band_5       140,423     11.83%     5.33%    2.22                    [2.11, 2.33]
+registered rule (book > OOB in all bands and ratio >= 2.0 in every band): MET
+
+Corrected (pairs whose book move was the first move removed):
+band           pairs  book rate  OOB rate   ratio    95% CI (clustered by player)
+band_1     3,445,577      3.62%     2.06%    1.76                    [1.74, 1.79]
+band_2     7,178,508      5.26%     2.91%    1.81                    [1.79, 1.83]
+band_3     7,182,167      6.84%     3.94%    1.73                    [1.72, 1.75]
+band_4     1,541,486      7.85%     4.40%    1.78                    [1.75, 1.81]
+band_5       135,927      9.41%     5.17%    1.82                    [1.75, 1.90]
+registered rule (book > OOB in all bands and ratio >= 2.0 in every band): NOT MET
+
+==============================================================================
+READING filtered_pairs.csv (players, H2, 3-pair rule)
+==============================================================================
+filtered pairs: 18,560,552; affected: 678,376 (3.65%). Affected pairs from x+0 games are not here,
+because the premove filter already removed them.
+players with >= 3 pairs: registered 514,502; corrected 503,417
+
+==============================================================================
+4. H1: registered versus corrected
+==============================================================================
+registered sample 915,688 pairs; affected 29,584 (3.23%)
+  affected sample pairs whose book time equals the increment: 99.82%
+  affected pairs by band: band_1 17,362, band_2 6,785, band_3 3,404, band_4 1,471, band_5 562
+corrected sample 885,249 pairs, 248,230 players (affected pairs removed and the 3-pair rule re-applied)
+Band counts, corrected: band_1 182,106, band_2 193,021, band_3 196,524, band_4 198,497, band_5 115,101
+
+H1 registered (should match Script 10): beta = +0.3053 (95% CI 0.3029 to 0.3076; ratio 1.357x), d = 0.3846 [total-SD d 0.3346], one-tailed p = 0.00e+00  -> rule MET
+
+--- Corrected sample: log time ~ is_oob + voc + (1 | player) ---
+rows 1,770,498   players 248,230   residual var 0.6336 (SD 0.7960)   between-player var 0.2022
+term                        estimate        SE         z  p (2-sided)
+Intercept                    1.01772   0.00140    729.35     0.00e+00
+is_oob                       0.32312   0.00120    269.24     0.00e+00
+voc                          0.00039   0.00001     31.16    4.29e-213
+H1 corrected: beta = +0.3231 (95% CI 0.3208 to 0.3255; ratio 1.381x), d = 0.4059 [total-SD d 0.3534], one-tailed p = 0.00e+00  -> rule MET
+VOC: 0.000391 per centipawn; out-of-book positions average 7.45 cp more VOC,
+which accounts for 0.90% of the is_oob effect.
+H1 corrected, without VOC: beta = +0.3260 (95% CI 0.3237 to 0.3284; ratio 1.385x), d = 0.4095 [total-SD d 0.3565], one-tailed p = 0.00e+00  -> rule MET
+Adding VOC moves beta from 0.3260 to 0.3231 (-0.89%).
+
+Band model (supplementary), corrected sample:
+residual SD 0.7965
+band      is_oob effect                95% CI   ratio       d
+band_1           0.3154      [0.3102, 0.3206]   1.371   0.396
+band_2           0.3187      [0.3137, 0.3237]   1.375   0.400
+band_3           0.3017      [0.2967, 0.3066]   1.352   0.379
+band_4           0.3254      [0.3204, 0.3303]   1.385   0.408
+band_5           0.3746      [0.3681, 0.3811]   1.454   0.470
+
+Robustness checks on the corrected sample
+  check 3: pairs kept 553,530 of 885,249 (62.5%)
+  check 3: beta = +0.2587 (95% CI 0.2561 to 0.2614; ratio 1.295x), d = 0.3631 [total-SD d 0.3282], one-tailed p = 0.00e+00  -> rule MET
+  check 4, raw seconds  beta +1.9708 (SE 0.0122), d 0.2426
+  check 4, square root  beta +0.3566 (SE 0.0015), d 0.3556
+
+==============================================================================
+5. H2: registered versus corrected
+==============================================================================
+Registered residualization over 18,227,472 pairs: diff = 0.29110 + 0.0005660 x VOC diff
+Corrected residualization over 17,551,458 pairs: diff = 0.31192 + 0.0005599 x VOC diff
+tied players assigned to the lower band: registered 21,931, corrected 21,302
+
+Registered (should match Script 10)
+  players 514,502;  H(4) = 959.816, p = 1.82e-206, epsilon-squared = 0.00186
+  band_1: n =  135,926   median -0.0218   
+  band_2: n =  192,919   median 0.0010   
+  band_3: n =  147,413   median -0.0063   
+  band_4: n =   33,970   median 0.0165   
+  band_5: n =    4,274   median 0.0628   
+  medians decrease with rating (the registered direction): False
+  registered rule (decreasing AND epsilon-squared >= 0.01): NOT MET
+
+Corrected: residualized player means
+  players 503,417;  H(4) = 215.591, p = 1.67e-45, epsilon-squared = 0.00042
+  band_1: n =  129,295   median -0.0037   95% bootstrap CI [-0.0057, -0.0016]
+  band_2: n =  189,681   median -0.0007   95% bootstrap CI [-0.0023, 0.0009]
+  band_3: n =  146,337   median -0.0159   95% bootstrap CI [-0.0177, -0.0142]
+  band_4: n =   33,842   median 0.0004   95% bootstrap CI [-0.0037, 0.0040]
+  band_5: n =    4,262   median 0.0437   95% bootstrap CI [0.0301, 0.0549]
+  medians decrease with rating (the registered direction): False
+  registered rule (decreasing AND epsilon-squared >= 0.01): NOT MET
+  Dunn's pairwise tests, Holm-adjusted p:
+            band_1    band_2    band_3    band_4    band_5
+  band_1  1.00e+00  7.98e-07  3.68e-04  2.97e-09  8.92e-21
+  band_2  7.98e-07  1.00e+00  3.08e-20  1.26e-03  2.10e-16
+  band_3  3.68e-04  3.08e-20  1.00e+00  5.61e-17  7.42e-25
+  band_4  2.97e-09  1.26e-03  5.61e-17  1.00e+00  3.42e-11
+  band_5  8.92e-21  2.10e-16  7.42e-25  3.42e-11  1.00e+00
+
+Corrected: unresidualized means, same players
+  players 503,417;  H(4) = 205.389, p = 2.61e-43, epsilon-squared = 0.00040
+  band_1: n =  129,295   median 0.3128   
+  band_2: n =  189,681   median 0.3159   
+  band_3: n =  146,337   median 0.3008   
+  band_4: n =   33,842   median 0.3164   
+  band_5: n =    4,262   median 0.3584   
+  medians decrease with rating (the registered direction): False
+  registered rule (decreasing AND epsilon-squared >= 0.01): NOT MET
+
+==============================================================================
+6. EXPLORATORY (not registered): deviator versus responder, corrected
+==============================================================================
+pairs with a known role: 885,069 of 885,249 (deviators 407,393, responders 477,676)
+
+--- H1 with a role interaction, corrected sample ---
+rows 1,770,138   players 248,188   residual var 0.6334 (SD 0.7959)   between-player var 0.2021
+term                        estimate        SE         z  p (2-sided)
+is_oob                       0.32167   0.00176    182.34     0.00e+00
+voc                          0.00038   0.00001     30.23    8.63e-201
+responder                    0.02623   0.00178     14.73     4.29e-49
+is_oob:responder             0.00293   0.00240      1.22     2.23e-01
+deviators:  is_oob 0.3217 (1.379x), d 0.4042, 95% CI [0.3182, 0.3251]
+responders: is_oob 0.3246 (1.383x), d 0.4079, 95% CI [0.3214, 0.3278]
+
+==============================================================================
+SUMMARY: registered versus corrected
+==============================================================================
+                                              registered                 corrected
+H1 beta (d)                               0.3053 (0.385)            0.3231 (0.406)
+H1 rule                                              MET                       MET
+H1 pairs                                         915,688                   885,249
+H2 epsilon-squared                                0.0019                    0.0004
+H2 median, band_1                                -0.0218                   -0.0037
+H2 median, band_2                                 0.0010                   -0.0007
+H2 median, band_3                                -0.0063                   -0.0159
+H2 median, band_4                                 0.0165                    0.0004
+H2 median, band_5                                 0.0628                    0.0437
+H2 rule                                          NOT MET                   NOT MET
+H3 ratio, band_1                       8.34 [8.16, 8.53]         1.76 [1.74, 1.79]
+   book / OOB rate, band_1                20.79% / 2.49%             3.62% / 2.06%
+H3 ratio, band_2                       5.10 [5.01, 5.18]         1.81 [1.79, 1.83]
+   book / OOB rate, band_2                16.89% / 3.31%             5.26% / 2.91%
+H3 ratio, band_3                       3.46 [3.41, 3.51]         1.73 [1.72, 1.75]
+   book / OOB rate, band_3                14.99% / 4.33%             6.84% / 3.94%
+H3 ratio, band_4                       2.72 [2.66, 2.80]         1.78 [1.75, 1.81]
+   book / OOB rate, band_4                12.79% / 4.69%             7.85% / 4.40%
+H3 ratio, band_5                       2.22 [2.11, 2.33]         1.82 [1.75, 1.90]
+   book / OOB rate, band_5                11.83% / 5.33%             9.41% / 5.17%
+H3 rule                                              MET                   NOT MET
+Check 3 (corrected)                                                            MET
+Check 4 (corrected)                                                            MET
+
+First-move check: CONFIRMED
+
+Saved: outputs/tables/first_move_check.txt

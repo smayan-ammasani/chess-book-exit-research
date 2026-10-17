@@ -25,8 +25,17 @@ USAGE
     From the project root:
         python scripts/diagnose_h3.py
 
+    Without pairs whose last in-book move was the player's first move of the
+    game (exit ply 3 or 4). Lichess does not time first moves, so these pairs
+    carry the increment as the book time (see Script 13):
+        python scripts/diagnose_h3.py --no-first-moves
+
     Or with an explicit path:
         python scripts/diagnose_h3.py path/to/analysis_sample.csv
+
+OUTPUT
+    Printed to the screen and saved to outputs/diagnostics/h3_diagnostic.txt
+    (or h3_diagnostic_no_first_moves.txt with --no-first-moves).
 ==============================================================================
 """
 
@@ -44,6 +53,13 @@ MAX_TIME_FOR_FIT = 120.0
 # The ex-Gaussian cannot represent skewness at or above this value
 EXGAUSS_SKEW_CEILING = 2.0
 
+# Exit ply 3 (White) or 4 (Black): the last in-book move was the player's
+# first move, which Lichess does not time.
+FIRST_MOVE_MAX_EXIT = 4
+NO_FIRST_MOVES = '--no-first-moves' in sys.argv
+
+ROOT = Path(__file__).resolve().parent.parent
+
 CONDITIONS = [
     ('last_book_thinking_time', 'book'),
     ('first_oob_thinking_time', 'oob'),
@@ -52,8 +68,9 @@ CONDITIONS = [
 
 def resolve_input_path() -> Path:
     """Locate analysis_sample.csv from an argument, or by the usual layout."""
-    if len(sys.argv) > 1:
-        return Path(sys.argv[1])
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    if args:
+        return Path(args[0])
 
     here = Path(__file__).resolve()
     candidates = [
@@ -64,6 +81,31 @@ def resolve_input_path() -> Path:
         if c.exists():
             return c
     return candidates[0]
+
+
+def shown(p: Path) -> str:
+    """Path relative to the project root when possible."""
+    for q in (p, p.resolve()):
+        try:
+            return str(q.relative_to(ROOT))
+        except ValueError:
+            pass
+    return str(p)
+
+
+class Tee:
+    """Write everything printed to the screen and to a file."""
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, text):
+        for st in self.streams:
+            st.write(text)
+
+    def flush(self):
+        for st in self.streams:
+            st.flush()
 
 
 def verdict(skew: float) -> str:
@@ -85,13 +127,20 @@ def main() -> None:
         print('Pass the path explicitly:  python scripts/diagnose_h3.py <path-to-csv>')
         sys.exit(1)
 
-    print(f'Loading {path} ...')
-    df = pd.read_csv(
-        path,
-        usecols=['rating_band'] + [c for c, _ in CONDITIONS],
-        low_memory=False,
-    )
-    print(f'Loaded {len(df):,} pairs.\n')
+    print(f'Loading {shown(path)} ...')
+    cols = ['rating_band'] + [c for c, _ in CONDITIONS]
+    if NO_FIRST_MOVES:
+        cols.append('ply_at_exit')
+    df = pd.read_csv(path, usecols=cols, low_memory=False)
+    print(f'Loaded {len(df):,} pairs.')
+    if NO_FIRST_MOVES:
+        n_before = len(df)
+        df = df[df['ply_at_exit'] > FIRST_MOVE_MAX_EXIT]
+        print(f'Removed {n_before - len(df):,} pairs whose last in-book move was the '
+              f"player's first move (exit ply 3 or 4),")
+        print(f'which Lichess does not time. Pairs kept: {len(df):,}. The 3-pair '
+              'minimum is not re-applied here.')
+    print()
 
     bands = sorted(df['rating_band'].dropna().unique())
 
@@ -229,4 +278,14 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    out_dir = ROOT / 'outputs' / 'diagnostics'
+    out_dir.mkdir(parents=True, exist_ok=True)
+    name = 'h3_diagnostic_no_first_moves.txt' if NO_FIRST_MOVES else 'h3_diagnostic.txt'
+    out_path = out_dir / name
+    with open(out_path, 'w', encoding='utf-8') as fh:
+        sys.stdout = Tee(sys.__stdout__, fh)
+        try:
+            main()
+        finally:
+            sys.stdout = sys.__stdout__
+    print(f'Saved: {out_path}')
