@@ -1,0 +1,243 @@
+Script 10: Registered analyses
+Pre-registration: https://osf.io/n6tkx/
+Seed 42. Minimum pairs per player 3. Registered exit limit: ply 40.
+
+analysis_sample.csv: 915,688 pairs, 255,142 players; duplicate (game, colour) keys: 0
+
+==============================================================================
+BUILDING THE REGISTERED SAMPLE
+==============================================================================
+Reading filtered_pairs.csv (one pass) ...
+filtered pairs: 18,560,552; exits after ply 40: 0 (0.000%)
+players with >= 3 pairs: as built 514,502; with late exits removed 514,502
+analysis sample: 915,688 as built -> 915,688 registered (0 late exits removed, 0 pairs of players who fell below 3 pairs)
+Band counts in the registered sample:
+  band_1:   200,000
+  band_2:   200,000
+  band_3:   200,000
+  band_4:   200,000
+  band_5:   115,688
+pairs per player in the sample: mean 3.59, median 2; 1 pair 43.9%, 2 pairs 19.4%, 3+ pairs 36.7%
+(The 3-pair minimum counts all of a player's filtered pairs; the sample holds a
+systematic subset of them, so many players have 1 or 2 pairs here.)
+
+==============================================================================
+CROSS-CHECK: this REML code versus statsmodels MixedLM
+==============================================================================
+subsample: 2,000 players, 14,774 rows
+
+statsmodels method   converged   REML loglik     is_oob  player var
+lbfgs                     True           inf   0.304769    0.000000
+bfgs                      True   -18584.2905   0.304757    0.218253
+powell                    True   -18584.2905   0.304757    0.218251
+nm                        True   -18584.2905   0.304757    0.218278
+this script (REML)               -18584.2905   0.304757    0.218253
+
+Best statsmodels fit (bfgs) next to this script:
+                         this script   statsmodels
+is_oob estimate             0.304757      0.304757
+is_oob SE                   0.013136      0.013136
+voc estimate                0.000464      0.000464
+voc SE                      0.000138      0.000138
+residual variance           0.631779      0.631779
+player variance             0.218253      0.218253
+Matching columns mean the fits below are the model statsmodels fits at its best.
+
+NOTE: lbfgs, the first optimizer in the registered fallback chain, stopped at an
+invalid boundary point (player variance 0, log-likelihood not finite) while
+reporting convergence. The registered rule "take the first that converges"
+would accept it. This is the likely cause of the singular fit in Script 05,
+and the reason the fits below maximize the same likelihood directly. Report
+it as a deviation from the registered fitting procedure.
+
+==============================================================================
+H1 AS REGISTERED: log time ~ is_oob + voc + (1 | player)
+==============================================================================
+
+--- Registered sample ---
+rows 1,831,376   players 255,142   residual var 0.6300 (SD 0.7937)   between-player var 0.2023
+term                        estimate        SE         z  p (2-sided)
+Intercept                    1.04370   0.00137    760.94     0.00e+00
+is_oob                       0.30525   0.00118    259.38     0.00e+00
+voc                          0.00036   0.00001     29.15    8.56e-187
+H1 (registered): beta = +0.3053 (95% CI 0.3029 to 0.3076; ratio 1.357x), d = 0.3846 [total-SD d 0.3346], one-tailed p = 0.00e+00  -> rule MET
+VOC: 0.000364 log units per centipawn. Out-of-book positions average 7.55 cp more VOC,
+which accounts for 0.90% of the is_oob effect.
+
+--- Registered comparison: same model without VOC ---
+rows 1,831,376   players 255,142   residual var 0.6303 (SD 0.7939)   between-player var 0.2023
+term                        estimate        SE         z  p (2-sided)
+Intercept                    1.05389   0.00133    794.47     0.00e+00
+is_oob                       0.30800   0.00117    262.50     0.00e+00
+H1 without VOC: beta = +0.3080 (95% CI 0.3057 to 0.3103; ratio 1.361x), d = 0.3879 [total-SD d 0.3375], one-tailed p = 0.00e+00  -> rule MET
+Adding VOC moves beta from 0.3080 to 0.3053 (-0.89%).
+
+==============================================================================
+SUPPLEMENTARY: band model (same formula as 05b), registered sample
+==============================================================================
+residual SD 0.7943
+band      is_oob effect                95% CI   ratio       d
+band_1           0.2727      [0.2678, 0.2777]   1.314   0.343
+band_2           0.2978      [0.2928, 0.3027]   1.347   0.375
+band_3           0.2901      [0.2851, 0.2950]   1.336   0.365
+band_4           0.3209      [0.3160, 0.3259]   1.378   0.404
+band_5           0.3723      [0.3658, 0.3788]   1.451   0.469
+
+==============================================================================
+REGISTERED ROBUSTNESS CHECKS 3, 4 AND 5 (registered sample)
+==============================================================================
+
+Check 3: premove-adjacent pairs removed. The registration does not define
+"premove-adjacent". Operationalized after registration as: either move recorded
+at 1 s. Clock values are whole seconds, so a move that took a fraction of a
+second can be recorded as 0 s or as 1 s; 1 s is the value next to the premove
+code. State this definition, and that it was chosen after registration, in Methods.
+  pairs kept: 581,068 of 915,688 (63.5%)
+  check 3: beta = +0.2430 (95% CI 0.2404 to 0.2456; ratio 1.275x), d = 0.3432 [total-SD d 0.3106], one-tailed p = 0.00e+00  -> rule MET
+
+Check 4: transform sensitivity (same model, other scales)
+  raw seconds    beta +1.9431 (SE 0.0120), d 0.2396
+  square root    beta +0.3435 (SE 0.0015), d 0.3435
+  (On these scales beta is in seconds or root-seconds, so compare the sign and d.
+  Raw seconds have a very long right tail, which inflates the residual SD.)
+
+Check 5: VOC mean-centered
+  H1, centered VOC: beta = +0.3053 (95% CI 0.3029 to 0.3076; ratio 1.357x), d = 0.3846 [total-SD d 0.3346], one-tailed p = 0.00e+00  -> rule MET
+  Identical by construction: centering an additive covariate moves only the
+  intercept. For H2, residuals from a regression on VOC are also unchanged by
+  centering, so H2 with centered VOC equals the registered H2 below.
+
+==============================================================================
+STOCKFISH FAILURE CODE (registered: failures excluded and counted)
+==============================================================================
+positions in stockfish_covariate.csv: 114,083
+positions with both evaluations exactly 0 (the code Script 03 writes for a
+failure or a finished game): 12
+Some of these may be real evaluations of 0. They are flagged and tested below.
+
+==============================================================================
+READING boundary_pairs.csv (H3 intervals, roles, failure flags)
+==============================================================================
+rows read: 22,868,995; exits after ply 40 among them: 0
+
+sample pairs touching a zero-coded position: 510
+H1 without them: beta = +0.3054 (95% CI 0.3030 to 0.3077; ratio 1.357x), d = 0.3847 [total-SD d 0.3347], one-tailed p = 0.00e+00  -> rule MET
+
+==============================================================================
+H3-REVISED with the registered ratio confidence intervals
+==============================================================================
+Rates use every boundary pair before premove filtering, as in Script 06b.
+Intervals are for the ratio of rates (delta method, players as clusters,
+since each player contributes many pairs).
+
+Registered (exits after ply 40 removed):
+band           pairs  book rate  OOB rate   ratio    95% CI (clustered by player)
+band_1     4,597,238     20.79%     2.49%    8.34                    [8.16, 8.53]
+band_2     8,479,639     16.89%     3.31%    5.10                    [5.01, 5.18]
+band_3     8,010,394     14.99%     4.33%    3.46                    [3.41, 3.51]
+band_4     1,641,301     12.79%     4.69%    2.72                    [2.66, 2.80]
+band_5       140,423     11.83%     5.33%    2.22                    [2.11, 2.33]
+registered rule (book > OOB in all bands and ratio >= 2.0 in every band): MET
+
+As run in Script 06b (all pairs):
+band           pairs  book rate  OOB rate   ratio    95% CI (clustered by player)
+band_1     4,597,238     20.79%     2.49%    8.34                    [8.16, 8.53]
+band_2     8,479,639     16.89%     3.31%    5.10                    [5.01, 5.18]
+band_3     8,010,394     14.99%     4.33%    3.46                    [3.41, 3.51]
+band_4     1,641,301     12.79%     4.69%    2.72                    [2.66, 2.80]
+band_5       140,423     11.83%     5.33%    2.22                    [2.11, 2.33]
+registered rule (book > OOB in all bands and ratio >= 2.0 in every band): MET
+
+==============================================================================
+H2 AS REGISTERED: VOC-residualized, Kruskal-Wallis, Dunn + Holm
+==============================================================================
+Residualization: OLS over the 18,227,472 pairs that make up the player means:
+  log-time difference = 0.29110 + 0.0005660 x (VOC difference)
+players whose pairs split evenly between bands (assigned to the lower band): 21,931
+
+Registered: residualized player means
+  players 514,502;  H(4) = 959.816, p = 1.82e-206, epsilon-squared = 0.00186
+  band_1: n =  135,926   median -0.0218   95% bootstrap CI [-0.0240, -0.0196]
+  band_2: n =  192,919   median 0.0010   95% bootstrap CI [-0.0006, 0.0027]
+  band_3: n =  147,413   median -0.0063   95% bootstrap CI [-0.0079, -0.0046]
+  band_4: n =   33,970   median 0.0165   95% bootstrap CI [0.0124, 0.0206]
+  band_5: n =    4,274   median 0.0628   95% bootstrap CI [0.0482, 0.0743]
+  medians decrease with rating (the registered direction): False
+  registered rule (decreasing AND epsilon-squared >= 0.01): NOT MET
+  Dunn's pairwise tests, Holm-adjusted p:
+             band_1     band_2    band_3     band_4    band_5
+  band_1   1.00e+00  1.84e-101  2.14e-80  3.16e-122  2.13e-60
+  band_2  1.84e-101   1.00e+00  2.16e-01   1.17e-29  7.64e-31
+  band_3   2.14e-80   2.16e-01  1.00e+00   9.28e-32  6.88e-32
+  band_4  3.16e-122   1.17e-29  9.28e-32   1.00e+00  5.88e-12
+  band_5   2.13e-60   7.64e-31  6.88e-32   5.88e-12  1.00e+00
+
+(Adding the intercept back gives each band's cost at equal VOC. That shift
+changes no test.)
+
+For comparison: unresidualized means, same players
+  players 514,502;  H(4) = 940.262, p = 3.15e-202, epsilon-squared = 0.00182
+  band_1: n =  135,926   median 0.2741   
+  band_2: n =  192,919   median 0.2971   
+  band_3: n =  147,413   median 0.2896   
+  band_4: n =   33,970   median 0.3124   
+  band_5: n =    4,274   median 0.3572   
+  medians decrease with rating (the registered direction): False
+  registered rule (decreasing AND epsilon-squared >= 0.01): NOT MET
+
+Check against player_aggregated.csv: 514,502 players in the file, 514,502 recomputed,
+514,502 matched; largest difference in mean log delta 0.00005 (the file rounds to 4 decimals)
+
+As run in Script 05 (unresidualized)
+  players 514,502;  H(4) = 914.305, p = 1.33e-196, epsilon-squared = 0.00177
+  band_1: n =  133,003   median 0.2743   
+  band_2: n =  193,390   median 0.2969   
+  band_3: n =  149,843   median 0.2897   
+  band_4: n =   33,992   median 0.3124   
+  band_5: n =    4,274   median 0.3573   
+  medians decrease with rating (the registered direction): False
+  registered rule (decreasing AND epsilon-squared >= 0.01): NOT MET
+
+Script 05 players, residualized
+  players 514,502;  H(4) = 934.463, p = 5.68e-201, epsilon-squared = 0.00181
+  band_1: n =  133,003   median -0.0215   
+  band_2: n =  193,390   median 0.0006   
+  band_3: n =  149,843   median -0.0063   
+  band_4: n =   33,992   median 0.0164   
+  band_5: n =    4,274   median 0.0628   
+  medians decrease with rating (the registered direction): False
+  registered rule (decreasing AND epsilon-squared >= 0.01): NOT MET
+
+==============================================================================
+EXPLORATORY (not registered): deviator versus responder
+==============================================================================
+Book status belongs to the game, so in each game one player made the move
+that left theory (the deviator) and the other answered it (the responder).
+The deviator's exit ply is one less than the responder's.
+pairs with a known role: 914,324 of 915,688 (deviators 429,158, responders 485,166)
+A role is unknown when the opponent has no usable pair (for example a missing
+clock time, or the opponent left book on their first move).
+
+--- H1 with a role interaction ---
+rows 1,828,648   players 254,859   residual var 0.6299 (SD 0.7937)   between-player var 0.2026
+term                        estimate        SE         z  p (2-sided)
+is_oob                       0.29396   0.00171    171.48     0.00e+00
+voc                          0.00035   0.00001     27.97    3.69e-172
+responder                    0.00650   0.00175      3.72     1.97e-04
+is_oob:responder             0.02341   0.00235      9.95     2.56e-23
+deviators:  is_oob 0.2940 (1.342x), d 0.3704, 95% CI [0.2906, 0.2973]
+responders: is_oob 0.3174 (1.374x), d 0.3999, 95% CI [0.3142, 0.3205]
+
+==============================================================================
+SUMMARY OF REGISTERED DECISIONS (registered sample)
+==============================================================================
+  H1           MET       beta 0.3053, d 0.3846
+  Check 3      MET       H1 rule on reduced sample
+  Check 4      MET       H1 rule on raw and square-root scales
+  Check 5      MET       H1 rule with centered VOC
+  H3-revised   MET       see table
+  H2           NOT MET   see table
+
+Not covered here: robustness check 1 (Script 12) and check 2 (voc_robustness_check.py).
+
+Saved: outputs/tables/registered_analyses.txt
