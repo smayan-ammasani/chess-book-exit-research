@@ -28,8 +28,8 @@ INTERPRETATION
 Smallest jump-to-baseline ratio across bands: 3.6x
 
 The boundary jump exceeds the ply trend, but not by a wide
-margin in every band. Report this probe as a limitation and
-treat the full curve extraction as a priority.
+margin in every band. This is a limitation, and the full
+transition curve is needed.
 
 CAVEAT: this trend is cross-sectional. Games leaving book at ply 30
 may differ systematically from games leaving at ply 10, so the slope
@@ -37,4 +37,4 @@ conflates "later plies are slower" with "longer-book games differ".
 It bounds the concern; it does not resolve it. Only a within-game
 window (moves -5 to +10) measures the actual trend.
 
-Saved to: C:\Users\Smayan Ammasani\Documents\GitHub\chess-book-exit-research\outputs\diagnostics\ply_trend_probe.txt
+Saved to: C:\smayantransfer\chess-book-exit-research\outputs\diagnostics\ply_trend_probe.txt

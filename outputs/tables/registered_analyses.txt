@@ -47,8 +47,8 @@ NOTE: lbfgs, the first optimizer in the registered fallback chain, stopped at an
 invalid boundary point (player variance 0, log-likelihood not finite) while
 reporting convergence. The registered rule "take the first that converges"
 would accept it. This is the likely cause of the singular fit in Script 05,
-and the reason the fits below maximize the same likelihood directly. Report
-it as a deviation from the registered fitting procedure.
+and the reason the fits below maximize the same likelihood directly. This is a
+deviation from the registered fitting procedure.
 
 ==============================================================================
 H1 AS REGISTERED: log time ~ is_oob + voc + (1 | player)
@@ -91,15 +91,15 @@ Check 3: premove-adjacent pairs removed. The registration does not define
 "premove-adjacent". Operationalized after registration as: either move recorded
 at 1 s. Clock values are whole seconds, so a move that took a fraction of a
 second can be recorded as 0 s or as 1 s; 1 s is the value next to the premove
-code. State this definition, and that it was chosen after registration, in Methods.
+code. This definition was chosen after registration.
   pairs kept: 581,068 of 915,688 (63.5%)
   check 3: beta = +0.2430 (95% CI 0.2404 to 0.2456; ratio 1.275x), d = 0.3432 [total-SD d 0.3106], one-tailed p = 0.00e+00  -> rule MET
 
 Check 4: transform sensitivity (same model, other scales)
   raw seconds    beta +1.9431 (SE 0.0120), d 0.2396
   square root    beta +0.3435 (SE 0.0015), d 0.3435
-  (On these scales beta is in seconds or root-seconds, so compare the sign and d.
-  Raw seconds have a very long right tail, which inflates the residual SD.)
+  (On these scales beta is in seconds or root-seconds, so only the sign and d
+  are comparable. Raw seconds have a very long right tail, which inflates the residual SD.)
 
 Check 5: VOC mean-centered
   H1, centered VOC: beta = +0.3053 (95% CI 0.3029 to 0.3076; ratio 1.357x), d = 0.3846 [total-SD d 0.3346], one-tailed p = 0.00e+00  -> rule MET
