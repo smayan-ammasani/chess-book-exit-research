@@ -1,48 +1,52 @@
 #!/usr/bin/env python3
 """
-Script 05: Statistical Analysis
+Script 05: Statistical Analysis (first-stage tests)
 ==============================================================================
 PURPOSE
-    Run the pre-registered confirmatory hypothesis tests for H1 and H2,
-    plus the Kruskal-Wallis robustness check. Produce a formatted results
-    table for direct inclusion in the paper.
+    Run player-level tests of H1 and H2 (Wilcoxon signed-rank test;
+    Kruskal-Wallis test with Dunn's post-hoc tests) and a first mixed-effects
+    model, and write the results to a text file.
 
-PRE-REGISTERED HYPOTHESES (fixed before examining full results)
-    H1 (confirmatory): After controlling for engine-derived value of
-        computation (VOC), the first out-of-book move takes significantly
-        longer than the last book move within the same game.
+STATUS
+    Superseded for the registered decisions. The hypotheses and decision rules
+    are registered at https://osf.io/n6tkx/ (2026-08-04). The verdicts printed
+    here come from p-values rather than the registered effect-size thresholds,
+    and the mixed model fitted here was degenerate (see Script 05b). Script 10
+    runs the registered analyses.
 
-    H2 (confirmatory): The magnitude of this residual book-exit time cost
-        decreases as player rating increases, consistent with template theory's
-        prediction that stronger players' recognition generalises beyond
-        literally memorised sequences.
+HYPOTHESES (summary; the registration has the exact wording)
+    H1: After adjusting for engine-derived value of computation (VOC), the
+        first out-of-book move takes longer than the last book move within
+        the same game.
 
-    H3 (exploratory): The book-exit time cost appears primarily as an increase
-        in the slow-mode tail of the response-time distribution (run in
-        Script 06 only if H1 is confirmed here).
+    H2: This book-exit time cost decreases as player rating increases, as
+        template theory would predict if stronger players' recognition
+        extends beyond literally memorised sequences.
+
+    H3 is tested separately (Script 06b, H3-revised).
 
 ANALYSIS STRUCTURE
     Primary analysis (player-level):
-        One observation per player — their mean log time delta across all
-        usable boundary pairs. This eliminates the non-independence problem
+        One observation per player: the mean log time delta across all
+        usable boundary pairs. This removes the non-independence problem
         without requiring a mixed-effects model, and is appropriate for
-        Kruskal-Wallis. N = 544,599 players.
+        Kruskal-Wallis.
 
     Secondary analysis (mixed-effects model):
         Run on a stratified subsample of 25,000 boundary pairs (5,000 per
-        band), reshaped to 50,000 long-format observations. This tests H1
-        and H2 with proper pair-level VOC control and a random intercept per
-        player. If MixedLM fails to converge, falls back to OLS with
-        clustered standard errors (same point estimates, robust SEs).
+        band), reshaped to 50,000 long-format observations, with pair-level
+        VOC and a random intercept per player. If MixedLM fails to converge,
+        falls back to OLS with clustered standard errors (same point
+        estimates, robust SEs).
 
     Robustness: Kruskal-Wallis + Dunn's on player-level means.
 
 INPUTS
-    data/processed/analysis_sample.csv       — from Script 04
-    data/processed/player_aggregated.csv     — from Script 04
+    data/processed/analysis_sample.csv       from Script 04
+    data/processed/player_aggregated.csv     from Script 04
 
 OUTPUTS
-    outputs/tables/statistical_results.txt   — full results for paper
+    outputs/tables/statistical_results.txt   full results
 
 ESTIMATED RUNTIME
     ~5-15 minutes.
@@ -198,7 +202,7 @@ def descriptive_statistics(player_df: pd.DataFrame, rw: ResultsWriter) -> None:
 
 
 # ==============================================================================
-# PHASE 3: H1 — IS THERE A BOOK-EXIT TIME COST?
+# PHASE 3: H1 (IS THERE A BOOK-EXIT TIME COST?)
 # ==============================================================================
 
 def test_h1(player_df: pd.DataFrame, rw: ResultsWriter) -> None:
@@ -206,14 +210,14 @@ def test_h1(player_df: pd.DataFrame, rw: ResultsWriter) -> None:
     H1: The first out-of-book move takes significantly longer than the last
     book move, even after controlling for position complexity (VOC).
 
-    Test 1 — Wilcoxon signed-rank test on player-level mean_log_time_delta:
+    Test 1: Wilcoxon signed-rank test on player-level mean_log_time_delta.
         Tests whether the population median log time delta differs from 0.
         Non-parametric: appropriate given the right-skewed distribution of
         individual time deltas. Uses player-level means, which eliminates
         the within-player non-independence problem (each player contributes
         one observation).
 
-    Test 2 — Cohen's d:
+    Test 2: Cohen's d.
         Quantifies the magnitude of the effect at the player level.
         d = mean(mean_log_time_delta) / SD(mean_log_time_delta)
     """
@@ -246,13 +250,13 @@ def test_h1(player_df: pd.DataFrame, rw: ResultsWriter) -> None:
 
     rw.write('')
     rw.write('NOTE: This test uses player-level means (one observation per')
-    rw.write('player), which eliminates within-player non-independence. The')
-    rw.write('VOC-controlled result from the mixed-effects model (below)')
-    rw.write('is the definitive test of H1 after complexity control.')
+    rw.write('player), which removes within-player non-independence. The')
+    rw.write('VOC-adjusted test of H1 is the mixed-effects model; the')
+    rw.write('registered version is fitted in Script 10.')
 
 
 # ==============================================================================
-# PHASE 4: H2 — DOES THE COST VARY WITH RATING?
+# PHASE 4: H2 (DOES THE COST VARY WITH RATING?)
 # ==============================================================================
 
 def test_h2_kruskal(player_df: pd.DataFrame, rw: ResultsWriter) -> None:
@@ -376,22 +380,22 @@ def run_mixed_effects_model(sample_df: pd.DataFrame, rw: ResultsWriter) -> None:
                            + (1 | player)
 
     Fixed effects:
-        is_oob          : book (0) vs out-of-book (1) — tests H1
-        voc             : Stockfish depth-1 vs depth-15 eval gap — the
-                          complexity control variable from Russek et al. (2025)
-        rating_band     : skill tier (categorical) — tests H2
-        is_oob × rating : interaction — does H1 effect vary by skill? — tests H2
+        is_oob          : book (0) vs out-of-book (1); tests H1
+        voc             : gap between depth-1 and depth-15 Stockfish
+                          evaluations (Script 03), the complexity covariate
+        rating_band     : skill tier (categorical)
+        is_oob × rating : interaction; does the H1 effect vary by skill? (H2)
 
     Random effect:
         (1 | player)    : random intercept per player, absorbing the fact
                           that one player contributes both book and OOB
                           observations across many games (non-independence)
 
-    WHY THIS SUBSAMPLE SIZE:
-        Running LMM on 50,000 observations (100K after long reshape) with
-        statsmodels MixedLM is computationally feasible on a laptop.
-        Statistical power at N=50K is far beyond what is needed to detect
-        effects of the magnitude observed in the descriptive statistics.
+    SUBSAMPLE SIZE:
+        25,000 pairs (50,000 rows after the long reshape) keeps statsmodels
+        MixedLM feasible on a laptop. Drawing pairs rather than players gave
+        about 1.2 pairs per player, too few to identify the random intercept;
+        Script 05b redesigns the sample for that reason.
 
     REFERENCE BAND: band_3 (1600-1999, club players). Interaction coefficients
     for other bands represent the difference in is_oob effect relative to
@@ -489,7 +493,7 @@ def run_mixed_effects_model(sample_df: pd.DataFrame, rw: ResultsWriter) -> None:
 
     is_oob_coef = params.get('is_oob', np.nan)
     is_oob_p    = pvals.get('is_oob', np.nan)
-    rw.write(f'\nH1 — is_oob coefficient:')
+    rw.write(f'\nH1, is_oob coefficient:')
     rw.write(f'  β = {is_oob_coef:.4f} (SE = {bse.get("is_oob", np.nan):.4f})')
     rw.write(f'  p = {is_oob_p:.4f}  {stars(is_oob_p)}')
     rw.write(f'  Interpretation: on the log scale, the first OOB move takes')
@@ -506,11 +510,11 @@ def run_mixed_effects_model(sample_df: pd.DataFrame, rw: ResultsWriter) -> None:
         rw.write(f'  {voc_coef:.5f} increase in log(thinking_time).')
 
     # ── Interaction terms (H2) ────────────────────────────────────────────────
-    rw.write(f'\nH2 — is_oob × rating_band interactions '
+    rw.write(f'\nH2, is_oob × rating_band interactions '
              f'(relative to {REFERENCE_BAND}):')
     for band in BAND_ORDER:
         if band == REFERENCE_BAND:
-            rw.write(f'  {band}: [reference — is_oob effect = {is_oob_coef:.4f}]')
+            rw.write(f'  {band}: [reference; is_oob effect = {is_oob_coef:.4f}]')
             continue
         key = f'is_oob:C(rating_band, Treatment(\'{REFERENCE_BAND}\'))[T.{band}]'
         if key not in params.index:
@@ -552,7 +556,7 @@ def run_mixed_effects_model(sample_df: pd.DataFrame, rw: ResultsWriter) -> None:
 
 
 # ==============================================================================
-# PHASE 6: ADDITIONAL EFFECT SIZE — RAW SCALE
+# PHASE 6: ADDITIONAL EFFECT SIZE (RAW SCALE)
 # ==============================================================================
 
 def raw_scale_effects(player_df: pd.DataFrame, rw: ResultsWriter) -> None:
@@ -600,7 +604,7 @@ def main():
     rw = ResultsWriter(RESULTS_PATH)
 
     rw.write('STATISTICAL ANALYSIS RESULTS')
-    rw.write('Chess Book-Exit Cognitive Switch Study')
+    rw.write('Chess book-exit thinking-time study')
     rw.write('Pre-registered hypotheses H1 and H2')
     rw.write('')
     rw.write('Significance codes:  *** p<0.001  ** p<0.01  * p<0.05  . p<0.10')

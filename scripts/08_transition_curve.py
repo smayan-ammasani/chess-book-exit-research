@@ -414,15 +414,15 @@ def main():
                                lb['log_time'].to_numpy(), lb['pl'].to_numpy())
             print(f'{band:<9}{n:>9,}{m:>9.4f}{fmt_ci(m, se):>22}{b:>15.4f}')
 
-        header('HOW TO REPORT THIS')
-        print('1. Label the section exploratory, formulated after the confirmatory '
-              'results.')
-        print('2. Use the within-game numbers for any claim about trends. The cell '
-              'means are\n   for the figure, and their trend mixes different games.')
-        print('3. Report the duplicate count and that duplicates were removed.')
-        print('4. Report coverage with the curve: the in-book side thins out fast.')
-        print("5. Report that each player's first move was removed because Lichess "
-              'does not time\n   it, with the count above.')
+        header('NOTES')
+        print('1. This analysis is exploratory: it was formulated after the '
+              'confirmatory results.')
+        print('2. Statements about trends rest on the within-game estimates. The '
+              'cell means\n   describe the curve, and their trend mixes different games.')
+        print('3. Duplicate rows were removed (count above).')
+        print('4. Coverage falls quickly on the in-book side (table above).')
+        print("5. Each player's first move was removed because Lichess does not "
+              'time it\n   (count above).')
         print(f'\nSaved: {txt_path}\nSaved: {csv_path}')
     finally:
         sys.stdout = sys.__stdout__

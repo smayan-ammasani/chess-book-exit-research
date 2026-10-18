@@ -11,10 +11,10 @@ PURPOSE
 
     This is the main analysis dataset. Unlike Script 01 (which filtered for
     2200+ only to build a reference corpus), this script keeps all rating
-    bands so we can test whether the book-exit time cost varies with skill.
+    bands so the book-exit time cost can be compared across skill levels.
 
 INPUT
-    data/reference_corpus/book_sequences.csv    — output of Script 01
+    data/reference_corpus/book_sequences.csv    output of Script 01
     Lichess monthly PGN dump for ANALYSIS_MONTH (downloaded here)
 
 OUTPUT
@@ -38,7 +38,7 @@ SAFE TO INTERRUPT
 
 ESTIMATED RUNTIME
     Download: 1–4 hours (~29 GB).
-    Processing: 2–4 days (streaming ~89 million games).
+    Processing: 2–4 days (streaming about 97 million games).
 ==============================================================================
 """
 
@@ -58,7 +58,7 @@ import requests
 import zstandard as zstd
 from tqdm import tqdm
 
-# ── Project root on path so we can import config ──────────────────────────────
+# ── Project root on path so config can be imported ────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import (
@@ -207,10 +207,10 @@ def load_book_set(csv_path: Path, threshold: int) -> set:
     processing. With 14,533 sequences at threshold 10, this set is small
     (a few MB) and fast.
 
-    WHY NOT ECO CODES: see Script 01 docstring. Short version: ECO codes
+    WHY NOT ECO CODES: see the Script 01 docstring. In short, ECO codes
     stop classifying lines after 10-20 moves regardless of how deeply
-    players actually prepare. Our frequency-based approach captures real
-    preparation depth at each rating level.
+    players prepare, while a frequency-based book follows the lines that
+    strong players actually play.
     """
     log.info(f'Loading book sequences from {csv_path}...')
     df = pd.read_csv(csv_path)
@@ -241,7 +241,7 @@ def download_with_resume(month: str, local_path: Path) -> None:
     RETRY_DELAY = 30
 
     log.info(f'URL: {url}')
-    log.info('Auto-retry enabled if connection drops.')
+    log.info('The download resumes automatically if the connection drops.')
 
     attempt = 0
     while attempt < MAX_RETRIES:
@@ -321,14 +321,14 @@ def game_passes_filter(headers: dict):
     Return (True, '') if this game should be included in the analysis sample.
     Return (False, reason_string) if it should be excluded.
 
-    KEY DIFFERENCE FROM SCRIPT 01: no rating minimum. We keep all five
-    rating bands to test whether the book-exit time cost varies with skill.
+    KEY DIFFERENCE FROM SCRIPT 01: no rating minimum. All five rating bands
+    are kept so the book-exit time cost can be compared across skill levels.
 
     Inclusion criteria:
     1. Rated Rapid game (not Blitz, Bullet, Classical, or Casual)
-    2. Time control is one of our allowed Rapid controls (from config.py)
+    2. Time control is one of the allowed Rapid controls (from config.py)
     3. Both players have parseable integer ratings
-    4. RatingDiff headers present (proxy for rating reliability — see config.py)
+    4. RatingDiff headers present (proxy for rating reliability; see config.py)
     5. Game ended normally or by time forfeit; not abandoned or rules infraction
     """
     if headers.get('Event', '') != 'Rated Rapid game':
@@ -382,7 +382,7 @@ def extract_window_rows(game_id, color_name, rating, band, username,
     book exit, in this player's own move sequence.
 
     Positions that fall outside the game (before move 1, or after the game
-    ended) are simply absent -- the window is ragged by design, and the
+    ended) are simply absent. The window is ragged by design, and the
     analysis must handle unbalanced panels rather than assume 16 rows per
     player-game.
     """
@@ -430,16 +430,16 @@ def extract_window_rows(game_id, color_name, rating, band, username,
 def process_game(game: chess.pgn.Game, headers: dict, book_set: set) -> list:
     """
     Walk through one game move by move and return 0, 1, or 2 boundary pair
-    records — one per player where a valid book-exit transition was found.
+    records, one per player where a valid book-exit transition was found.
 
     BOOK STATUS:
         A move at ply P is "in book" if the full game sequence from the
         start up to and including that move appears in book_set as a tuple
         of UCI strings. This is a single O(1) set lookup.
 
-        Once a player's first out-of-book move is found, we stop looking
-        for that player — all subsequent moves are necessarily also OOB
-        (the game sequence can never re-enter the reference corpus).
+        Once a player's first out-of-book move is found, the search stops
+        for that player: all later moves are necessarily also OOB (the game
+        sequence can never re-enter the reference corpus).
 
     THINKING TIME:
         Lichess %clk annotations show time AFTER the move and AFTER
@@ -456,12 +456,12 @@ def process_game(game: chess.pgn.Game, headers: dict, book_set: set) -> list:
             → thinking_time = prev_clock − curr_clock + increment
 
     BOUNDARY PAIR:
-        For each player, we locate:
+        For each player, the walk locates:
         - last_book_ply : their last ply where the game was still in book
         - first_oob_ply : their immediately following move (first OOB)
 
         These form the paired comparison at the heart of H1 and H2.
-        We record the FEN positions at both plies for Stockfish in Script 03.
+        The FEN positions at both plies are recorded for Stockfish (Script 03).
     """
     game_id  = headers.get('Site', '').rsplit('/', 1)[-1]
     tc_str   = headers.get('TimeControl', '')
@@ -525,7 +525,7 @@ def process_game(game: chess.pgn.Game, headers: dict, book_set: set) -> list:
         try:
             board.push(move)
         except Exception:
-            break  # malformed PGN — use what we have
+            break  # malformed PGN: keep the moves read so far
 
         node = next_node
 
@@ -579,7 +579,7 @@ def process_game(game: chess.pgn.Game, headers: dict, book_set: set) -> list:
         oob_is_premove = oob_time <= PREMOVE_THRESHOLD_SECONDS
 
         # premove_suspect flags pairs where the OOB move itself is likely
-        # a premove — included for transparency, filtered in Script 04.
+        # a premove; included for transparency, filtered in Script 04.
         premove_suspect = oob_is_premove
 
         records.append({
@@ -619,13 +619,13 @@ def save_checkpoint(games_read: int, records_written: int,
     """
     Save progress to the next rotating checkpoint slot (A or B).
 
-    Stores game count and records-written count only — NOT the actual
-    records, which are written directly to the CSV as they are produced.
+    Stores the game count and records-written count only, not the records
+    themselves, which are written directly to the CSV as they are produced.
     On restart, truncate_csv_to() removes any rows written after the
     last checkpoint.
 
-    Uses replace() not rename() — replace() overwrites atomically on
-    Windows; rename() raises FileExistsError when the destination exists.
+    Uses replace() rather than rename(): replace() overwrites atomically on
+    Windows, while rename() raises FileExistsError when the destination exists.
     """
     global _checkpoint_slot
     target = CHECKPOINT_A if _checkpoint_slot % 2 == 0 else CHECKPOINT_B
@@ -670,7 +670,7 @@ def load_checkpoint():
             log.warning(f'  {path.name} is corrupt: {e}')
 
     if best is None:
-        log.info('No checkpoint found — starting from scratch.')
+        log.info('No checkpoint found; starting from scratch.')
         return 0, 0, 0, {}
 
     log.info(
@@ -858,7 +858,7 @@ def run_processing(book_set: set, start_games_read: int,
     # ── Filtration log ────────────────────────────────────────────────────────
     log.info('')
     log.info('=' * 65)
-    log.info('FILTRATION LOG — copy this into your Methods section:')
+    log.info('FILTRATION LOG')
     log.info(f'  Total games read:                       {games_read:>10,}')
     for reason, n in sorted(exclusion_counts.items(), key=lambda x: -x[1]):
         label = f'  Excluded ({reason}):'
@@ -911,7 +911,7 @@ def main():
 
     # ── Phase 4–6: Stream, filter, process ───────────────────────────────────
     log.info('Phase 4–6: Streaming through games...')
-    log.info('Safe to interrupt — progress saved every 25,000 games.')
+    log.info('Safe to interrupt; progress is saved every 25,000 games.')
     log.info('')
 
     run_processing(book_set, games_read, records_written, games_kept, exclusions)

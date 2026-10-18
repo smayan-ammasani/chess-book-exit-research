@@ -9,23 +9,21 @@ PURPOSE
 
         VOC = |eval(depth_15) - eval(depth_1)|    (in centipawns)
 
-    A large VOC means additional thinking substantially changes the evaluation
-    — the position objectively rewards deeper calculation. A small VOC means
-    the position is clear even at shallow analysis.
+    A large VOC means that deeper search substantially changes the
+    evaluation, so the position rewards further calculation. A small VOC
+    means the position is already clear at a shallow depth.
 
     This covariate is related to, but not the same as, the measure in
     Russek et al. (2025, Cognitive Science), who compared the deep-search
     value of the best move with the deep-search value of the move a depth-1
     search would choose.
-    By including VOC as a control variable in the mixed-effects model
-    (Script 05), this paper isolates the book-exit memory cost from the
-    generic position difficulty cost — the key methodological contribution
-    over prior work. If the book-exit time spike survives after controlling
-    for VOC, it reflects a memory-specific cost rather than just a complexity
-    spike.
+
+    VOC enters the mixed-effects models as a covariate, so the book-exit
+    effect is estimated at equal VOC. An effect that remains after this
+    adjustment is not explained by position complexity as VOC measures it.
 
 INPUT
-    data/processed/boundary_pairs.csv        — output of Script 02
+    data/processed/boundary_pairs.csv        output of Script 02
 
 OUTPUT
     data/processed/stockfish_covariate.csv
@@ -39,12 +37,12 @@ KEY EFFICIENCY
     22.8M boundary pairs produce only 114,083 UNIQUE positions (opening
     positions repeat heavily across games). This script analyzes each unique
     position ONCE and caches the result, cutting Stockfish calls from ~45M
-    to ~114K — a 400x reduction. Script 04 joins the results back to the
+    to ~114K, a 400x reduction. Script 04 joins the results back to the
     full boundary_pairs.csv using the normalized FEN as a key.
 
 ESTIMATED RUNTIME
-    3–8 hours depending on CPU speed. Safe to interrupt with Ctrl+C —
-    checkpoints save every 500 positions (~every few minutes).
+    3–8 hours depending on CPU speed. Safe to interrupt with Ctrl+C;
+    checkpoints save every 500 positions (every few minutes).
 ==============================================================================
 """
 
@@ -59,7 +57,7 @@ import chess.engine
 import pandas as pd
 from tqdm import tqdm
 
-# ── Project root on path so we can import config ──────────────────────────────
+# ── Project root on path so config can be imported ────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import (
@@ -106,8 +104,8 @@ def normalize_fen(fen: str) -> str:
 
     Fields 5 (halfmove clock) and 6 (fullmove number) are dropped.
     The same board position reached via different move sequences has
-    different move counters but identical first-4-field FENs — normalizing
-    ensures all paths to the same position map to the same cache key.
+    different move counters but identical first-4-field FENs, so
+    normalizing maps all paths to the same position to the same cache key.
 
     This is the same normalization used during deduplication in the
     diagnostic that found 114,083 unique positions.
@@ -152,7 +150,7 @@ def collect_unique_fens() -> list:
 
         if (i + 1) % 50 == 0:
             log.info(
-                f'  {(i+1)*chunk_size:,} rows processed — '
+                f'  {(i+1)*chunk_size:,} rows processed, '
                 f'{len(unique_fens):,} unique positions so far...'
             )
 
@@ -189,7 +187,7 @@ def load_checkpoint() -> dict:
             log.warning(f'  {path.name} is corrupt: {e}')
 
     if best is None:
-        log.info('No checkpoint found — starting from scratch.')
+        log.info('No checkpoint found; starting from scratch.')
         return {}
 
     log.info(f'Resuming with {len(best):,} positions already done.')
@@ -222,16 +220,16 @@ def analyze_position(board: chess.Board, engine: chess.engine.SimpleEngine) -> d
     Compute the value-of-computation covariate for one board position.
 
     Runs Stockfish twice:
-        1. At STOCKFISH_DEPTH_SHALLOW (depth 1) — simulates no thinking
-        2. At STOCKFISH_DEPTH_DEEP (depth 15) — simulates deep thinking
+        1. At STOCKFISH_DEPTH_SHALLOW (depth 1), standing in for little thought
+        2. At STOCKFISH_DEPTH_DEEP (depth 15), standing in for deep thought
 
     VOC = |eval_deep - eval_shallow| in centipawns.
 
-    WHY THIS CAPTURES POSITION COMPLEXITY:
-        In a "forcing" position where only one move is good, even shallow
-        analysis finds it — VOC is near zero. In a "quiet" position with many
-        plausible continuations, shallow and deep evals often disagree — VOC
-        is large, meaning extra thinking genuinely changes the picture.
+    WHY THIS REFLECTS POSITION COMPLEXITY:
+        In a forcing position where only one move is good, even a shallow
+        search finds it, so VOC is near zero. In a quiet position with many
+        plausible continuations, shallow and deep evaluations often disagree,
+        so VOC is large: extra calculation changes the assessment.
 
     Evaluations are from White's perspective and capped at STOCKFISH_EVAL_CAP_CP
     to prevent mate-distance scores (which can be ±100,000 in python-chess
@@ -241,7 +239,7 @@ def analyze_position(board: chess.Board, engine: chess.engine.SimpleEngine) -> d
     Returns zeros for terminal positions or on Stockfish errors.
     """
     if board.is_game_over():
-        # Checkmate, stalemate, etc. — no computation is valuable here
+        # Checkmate, stalemate, etc.: no computation is valuable here
         return {'voc': 0.0, 'eval_depth1': 0, 'eval_depth15': 0}
 
     try:
@@ -271,7 +269,7 @@ def run_analysis(all_fens: list, results: dict) -> dict:
     Run Stockfish on every position not yet in the results cache.
     Saves checkpoints every CHECKPOINT_INTERVAL positions.
     """
-    # Locate Stockfish binary — try the configured path, then the .exe variant
+    # Locate the Stockfish binary: the configured path, then the .exe variant
     stockfish_path = Path(STOCKFISH_PATH)
     if not stockfish_path.exists():
         exe_path = stockfish_path.with_suffix('.exe')
@@ -359,7 +357,7 @@ def save_output(results: dict) -> None:
 
     log.info(f'Saved: {OUTPUT_PATH}')
 
-    # Quick sanity check — print distribution of VOC values
+    # Sanity check: distribution of VOC values
     vocs = [v['voc'] for v in results.values()]
     import statistics
     log.info('')
@@ -402,7 +400,7 @@ def main():
                 log.info('Next step: python scripts/04_assemble_dataset.py')
                 return
             else:
-                log.info(f'Output exists but has only {existing_count:,} rows — continuing.')
+                log.info(f'Output exists but has only {existing_count:,} rows; continuing.')
         except Exception:
             pass
 
@@ -413,7 +411,7 @@ def main():
 
     # ── Phase 3: Stockfish analysis ───────────────────────────────────────────
     log.info('Running Stockfish analysis...')
-    log.info('Safe to interrupt with Ctrl+C — progress saves every 500 positions.')
+    log.info('Safe to interrupt with Ctrl+C; progress is saved every 500 positions.')
     log.info('')
     results = run_analysis(all_fens, results)
 
@@ -422,7 +420,7 @@ def main():
     log.info('Saving output...')
     save_output(results)
 
-    # Clean up checkpoint files now that we have the final output
+    # Remove checkpoint files once the final output is written
     for ck in [CHECKPOINT_A, CHECKPOINT_B]:
         if ck.exists():
             ck.unlink()

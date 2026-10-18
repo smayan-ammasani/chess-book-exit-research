@@ -15,29 +15,29 @@ PURPOSE
 WHY NOT ECO CODES?
     The Encyclopaedia of Chess Openings (ECO) assigns labels like "C54" to
     opening positions, but stops labeling lines after roughly 10-20 moves.
-    Modern preparation at the 1800+ online level routinely extends 25-35+
-    moves deep in sharp theoretical lines that no ECO label covers.
+    Prepared lines in sharp openings can run well past the depth that ECO
+    labels cover.
 
-    If we defined "in book" using ECO codes, we would mislabel a strong
-    player's genuine, deeply memorized preparation as "out of book" the moment
-    it ran past the ECO cutoff — manufacturing a false effect that has nothing
-    to do with cognition, purely because of our measurement tool's limitations.
+    Defining "in book" by ECO codes would label a player's memorized
+    preparation as "out of book" as soon as it passed the ECO cutoff. That
+    would create a boundary effect from the measurement tool rather than
+    from the player.
 
     The frequency-based approach scales naturally: a position is "book" if
     many real players of comparable or higher strength actually played there,
     regardless of whether a textbook assigned it a code.
 
 WHY A SEPARATE REFERENCE MONTH?
-    We use games from June 2024 to build the frequency table, and games from
-    December 2024 as the main analysis sample (both set in config.py).
+    Games from June 2024 build the frequency table, and games from December
+    2024 form the main analysis sample (both set in config.py).
 
-    This separation is critical for avoiding circularity: if we defined "book"
-    using the same games we measure time costs in, a sequence might look
-    "book" partly because it appears in our own analysis data — a self-fulfilling
-    artifact. Using an independent time period eliminates this confound.
+    The separation avoids circularity. If "book" were defined from the same
+    games in which time costs are measured, a sequence could count as book
+    partly because it appears in the analysis data itself. Using an
+    independent month removes this dependence.
 
 INPUT
-    None — this script downloads its own data from Lichess.
+    None. This script downloads its own data from Lichess.
 
 OUTPUT
     data/reference_corpus/book_sequences.csv
@@ -50,13 +50,13 @@ OUTPUT
 USAGE
     python scripts/01_build_reference_corpus.py
 
-    Safe to interrupt with Ctrl+C. Progress is checkpointed every 100,000
-    games — rerunning the script will resume from the last checkpoint.
+    Safe to interrupt with Ctrl+C. Progress is checkpointed every 25,000
+    games, and rerunning the script resumes from the last checkpoint.
 
 ESTIMATED RUNTIME
     Download: 1-4 hours depending on internet speed (file is 15-30 GB).
     Processing: 2-6 hours depending on CPU speed.
-    Both phases run unattended. Leave the script running in the background.
+    Both phases run unattended.
 ==============================================================================
 """
 
@@ -77,8 +77,8 @@ import chess.pgn
 from tqdm import tqdm
 
 # ── Import project configuration ───────────────────────────────────────────────
-# sys.path.insert allows Python to find config.py in the project root,
-# regardless of which directory you run this script from.
+# Put the project root on the path so config.py can be imported from any
+# working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import (
@@ -92,8 +92,8 @@ from config import (
 )
 
 # ── Logging ────────────────────────────────────────────────────────────────────
-# Using Python's logging module (not print) gives timestamps on every line,
-# which helps you track how long each phase is taking.
+# The logging module (rather than print) timestamps every line, which shows
+# how long each phase takes.
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s  %(message)s',
@@ -118,7 +118,7 @@ OUTPUT_PATH     = CORPUS_DIR / 'book_sequences.csv'
 # On restart, load_checkpoint() picks whichever file has the higher game count.
 CHECKPOINT_A    = CORPUS_DIR / 'checkpoint_a.pkl'
 CHECKPOINT_B    = CORPUS_DIR / 'checkpoint_b.pkl'
-# Legacy path from earlier runs — loaded as fallback if neither A nor B exists.
+# Legacy path from earlier runs, loaded as a fallback if neither A nor B exists.
 CHECKPOINT_LEGACY = CORPUS_DIR / 'checkpoint.pkl'
 
 # Save every 25,000 games (~60 seconds at 400 games/sec).
@@ -127,7 +127,7 @@ CHECKPOINT_INTERVAL = 25_000
 
 
 # ==============================================================================
-# PHASE 1 — DOWNLOAD
+# PHASE 1: DOWNLOAD
 # ==============================================================================
 
 def download_with_resume(month: str, local_path: Path) -> None:
@@ -136,9 +136,9 @@ def download_with_resume(month: str, local_path: Path) -> None:
     and automatic retry on connection drops.
 
     Lichess provides complete monthly PGN archives at a public URL. The files
-    are Zstandard-compressed (.pgn.zst). We keep them compressed on disk and
-    stream-decompress during processing — this avoids writing a 100-200 GB
-    uncompressed file to disk.
+    are Zstandard-compressed (.pgn.zst). They stay compressed on disk and are
+    decompressed as a stream during processing, which avoids writing a
+    100-200 GB uncompressed file to disk.
 
     A 29 GB download over a home internet connection will very likely experience
     at least one connection reset mid-transfer. The retry loop handles this
@@ -159,7 +159,7 @@ def download_with_resume(month: str, local_path: Path) -> None:
     RETRY_DELAY  = 30    # Seconds to wait between retries
 
     log.info(f'URL: {url}')
-    log.info('The script will auto-retry if the connection drops. Leave it running.')
+    log.info('The download resumes automatically if the connection drops.')
 
     attempt = 0
 
@@ -186,7 +186,7 @@ def download_with_resume(month: str, local_path: Path) -> None:
             time.sleep(RETRY_DELAY)
             continue
 
-        # HTTP 416 = server says we already have all the bytes — file is complete
+        # HTTP 416: the server has no bytes left to send, so the file is complete
         if response.status_code == 416:
             log.info('File already fully downloaded.')
             return
@@ -241,15 +241,15 @@ def download_with_resume(month: str, local_path: Path) -> None:
                 f'Retry {attempt}/{MAX_RETRIES} in {RETRY_DELAY}s...'
             )
             time.sleep(RETRY_DELAY)
-            # Loop back — next iteration resumes from new_size bytes
+            # Loop back; the next iteration resumes from new_size bytes
 
     log.error(f'Download failed after {MAX_RETRIES} retries.')
-    log.error('Check your internet connection and re-run the script to try again.')
+    log.error('Check the internet connection and rerun the script.')
     sys.exit(1)
 
 
 # ==============================================================================
-# PHASE 2 — FILTERING
+# PHASE 2: FILTERING
 # ==============================================================================
 
 def game_passes_filter(headers: dict) -> tuple[bool, str]:
@@ -259,21 +259,20 @@ def game_passes_filter(headers: dict) -> tuple[bool, str]:
     Returns (True, '') if the game passes all filters.
     Returns (False, reason) if it should be excluded.
 
-    Inclusion criteria — ALL must be met:
+    Inclusion criteria (all must be met):
     1. Rated Rapid game (not Blitz, Bullet, Classical, or Casual)
     2. Both players rated 2200 or above on Lichess Rapid
-    3. Time control matches one of our allowed Rapid controls (from config.py)
+    3. Time control is one of the allowed Rapid controls (from config.py)
     4. Game ended normally or by time forfeit (not abandoned or rules infraction)
-       Note: time forfeit games are INCLUDED — the moves played are legitimate
-       chess, the game just ended when a player's clock hit zero. Abandoned
-       games are excluded because the move record may be incomplete.
+       Time-forfeit games are included: the moves are legitimate chess, and
+       the game ended only because a clock reached zero. Abandoned games are
+       excluded because the move record may be incomplete.
 
     Why 2200+?
-        We want the reference corpus to capture what genuinely-prepared players
-        actually know in theory. Players rated 2200+ online routinely prepare
-        20-30+ move theoretical lines. Using their games to define "book" means
-        our threshold reflects real preparation depth — not just the first few
-        moves any player might know from habit.
+        The reference corpus should reflect the theory that well-prepared
+        players know. Defining "book" from games between 2200+ players ties
+        the threshold to strong players' preparation rather than to the first
+        few moves that most players know from habit.
     """
     # ── Check 1: Event type ──────────────────────────────────────────────────
     # Lichess encodes the event type exactly as "Rated Rapid game" in the PGN
@@ -308,7 +307,7 @@ def game_passes_filter(headers: dict) -> tuple[bool, str]:
 
 
 # ==============================================================================
-# PHASE 3 — SEQUENCE EXTRACTION
+# PHASE 3: SEQUENCE EXTRACTION
 # ==============================================================================
 
 def extract_prefixes(game: chess.pgn.Game):
@@ -320,22 +319,14 @@ def extract_prefixes(game: chess.pgn.Game):
     sequence of moves from the start of the game to that point.
 
     Example: after White plays e4 and Black plays e5:
-        yields ("e2e4",)           — after White's first move
-        yields ("e2e4", "e7e5")    — after Black's first move
+        yields ("e2e4",)           after White's first move
+        yields ("e2e4", "e7e5")    after Black's first move
 
-    Why tuples?
-        Tuples are hashable and can be used as dictionary keys. This allows
-        O(1) counting via a defaultdict. Lists cannot be dictionary keys.
-
-    Why ALL prefixes (not just the full game sequence)?
-        In Script 02, we need to check any mid-game position: "is THIS
-        specific sequence still in book?" — not just the final position.
-        A game that goes 25 moves deep in theory contributes 25 separate
-        prefix entries, each counted independently.
-
-    This function is a generator (uses 'yield') to be memory-efficient:
-    it produces one prefix at a time rather than building a list of all
-    prefixes in memory before returning.
+    Prefixes are tuples so they can serve as dictionary keys for O(1)
+    counting. Every prefix is counted, not only the full sequence, because
+    Script 02 checks book status at every ply: a game contributes one prefix
+    per ply, each counted independently. The function is a generator, so
+    prefixes are produced one at a time.
     """
     moves_so_far = []
     node = game
@@ -352,15 +343,15 @@ def extract_prefixes(game: chess.pgn.Game):
 
         moves_so_far.append(next_node.move.uci())
 
-        # tuple() creates an immutable snapshot — necessary because
-        # moves_so_far is a mutable list that keeps growing
+        # tuple() takes an immutable snapshot, because moves_so_far is a
+        # list that keeps growing
         yield tuple(moves_so_far)
 
         node = next_node
 
 
 # ==============================================================================
-# PHASE 4 — CHECKPOINTING
+# PHASE 4: CHECKPOINTING
 # ==============================================================================
 
 # Tracks which checkpoint slot to write to next (0 = A, 1 = B, alternating)
@@ -379,8 +370,8 @@ def save_checkpoint(
     If one file is corrupt or partially written (e.g. OS killed mid-write),
     the other still holds the previous good checkpoint.
 
-    Uses .replace() instead of .rename() — replace() overwrites atomically
-    on both Windows and Unix; rename() raises FileExistsError on Windows.
+    Uses .replace() rather than .rename(): replace() overwrites atomically
+    on both Windows and Unix, while rename() raises FileExistsError on Windows.
     """
     global _checkpoint_slot
 
@@ -436,7 +427,7 @@ def load_checkpoint() -> tuple:
             log.warning(f'  {path.name} is corrupt and will be ignored: {e}')
 
     if best is None:
-        log.info('No valid checkpoint found — starting from the beginning.')
+        log.info('No valid checkpoint found; starting from the beginning.')
         return defaultdict(int), 0, 0, {}
 
     log.info(f'Loading from {best_path.name} ({best["games_read"]:,} games read, '
@@ -451,27 +442,26 @@ def load_checkpoint() -> tuple:
 
 
 # ==============================================================================
-# PHASE 5 — MAIN PROCESSING LOOP
+# PHASE 5: MAIN PROCESSING LOOP
 # ==============================================================================
 
 def build_sequence_counts() -> defaultdict:
     """
     Stream through the compressed PGN file and count how often each
-    move-sequence prefix appears in games that pass our filters.
+    move-sequence prefix appears in games that pass the filters.
 
     This is the core computational step of Script 01. It:
-        1. Opens the .pgn.zst file and decompresses it on-the-fly
-           (never writes the full uncompressed file to disk — saves 100+ GB)
+        1. Opens the .pgn.zst file and decompresses it on the fly
+           (the uncompressed file, over 100 GB, is never written to disk)
         2. Reads games one by one using python-chess's PGN parser
         3. Applies the inclusion filter (Rapid, 2200+, normal time control)
         4. For games that pass, counts every opening prefix up to 40 plies
         5. Saves a checkpoint every CHECKPOINT_INTERVAL games in case of interruption
 
     Memory note:
-        The sequence_counts dictionary maps tuples of UCI strings to integers.
-        With 100,000+ qualifying games contributing up to 40 prefixes each,
-        this dictionary may grow to 500 MB – 2 GB of RAM. This is expected
-        and normal for a research pipeline of this scale.
+        The counts dictionary maps tuples of UCI strings to integers. With
+        100,000+ qualifying games contributing up to 40 prefixes each, it can
+        use 0.5 to 2 GB of RAM.
 
     Returns:
         defaultdict mapping sequence tuples → occurrence count
@@ -498,15 +488,15 @@ def build_sequence_counts() -> defaultdict:
                 # ── Resume: fast-skip games already processed ───────────
                 if start_at > 0:
                     log.info(f'Fast-skipping {start_at:,} already-processed games...')
-                    log.info('(Scanning for game boundaries without parsing moves — '
-                             'much faster than before.)')
+                    log.info('(Scanning for game boundaries without parsing moves, '
+                             'which is much faster than full parsing.)')
 
                     # Scan line-by-line and count game-result tokens.
                     # In Lichess PGN format, every game ends with a result token
                     # (1-0, 0-1, 1/2-1/2, or *) as the last word on a line.
                     # This avoids expensive board operations (legal move generation,
                     # piece tracking) used by chess.pgn.read_game(), making the
-                    # skip 5-10x faster than the previous implementation.
+                    # skip 5-10x faster than parsing each game.
                     RESULT_TOKENS = {'1-0', '0-1', '1/2-1/2', '*'}
                     skipped = 0
                     for line in text_stream:
@@ -535,13 +525,13 @@ def build_sequence_counts() -> defaultdict:
                     try:
                         game = chess.pgn.read_game(text_stream)
                     except Exception as exc:
-                        # Malformed PGN record — log at debug level and skip.
+                        # Malformed PGN record: log at debug level and skip.
                         # This happens occasionally in large public datasets.
                         log.debug(f'Skipping malformed game record: {exc}')
                         continue
 
                     if game is None:
-                        # None signals end of file — we're done
+                        # None signals the end of the file
                         break
 
                     games_read += 1
@@ -556,8 +546,8 @@ def build_sequence_counts() -> defaultdict:
                         continue
 
                     # ── Extract opening prefixes and count them ───────────────
-                    # We materialize the generator into a list FIRST so we can
-                    # check the game's length before deciding whether to count it.
+                    # Materialize the generator first so the game's length can
+                    # be checked before its prefixes are counted.
                     prefixes = list(extract_prefixes(game))
 
                     if len(prefixes) < MIN_PLIES_FOR_INCLUSION:
@@ -565,7 +555,7 @@ def build_sequence_counts() -> defaultdict:
                         exclusion_counts['too_short'] = exclusion_counts.get('too_short', 0) + 1
                         continue
 
-                    # Game is valid — count all its opening prefixes
+                    # Game is valid: count all its opening prefixes
                     for prefix_tuple in prefixes:
                         counts[prefix_tuple] += 1
 
@@ -580,11 +570,10 @@ def build_sequence_counts() -> defaultdict:
     save_checkpoint(counts, games_read, games_kept, exclusion_counts)
 
     # ── Print filtration log ───────────────────────────────────────────────────
-    # This output should be copied verbatim into your paper's Methods section
-    # under "Reference corpus construction" or similar.
+    # Games read, games excluded (by reason), and games kept.
     log.info('')
     log.info('=' * 65)
-    log.info('FILTRATION LOG — copy this into your Methods section:')
+    log.info('FILTRATION LOG')
     log.info(f'  Total games read from raw file:         {games_read:>10,}')
     for reason, n in sorted(exclusion_counts.items(), key=lambda x: -x[1]):
         log.info(f'  Excluded ({reason}):  {n:>10,}')
@@ -595,20 +584,18 @@ def build_sequence_counts() -> defaultdict:
 
 
 # ==============================================================================
-# PHASE 6 — SAVE OUTPUT
+# PHASE 6: SAVE OUTPUT
 # ==============================================================================
 
 def save_output(counts: defaultdict) -> None:
     """
     Filter the sequence counts and write the final CSV output.
 
-    We save all sequences with count >= MIN_COUNT_TO_SAVE (default = 3).
-    The actual analysis threshold (PRIMARY_BOOK_THRESHOLD = 10, or 5 or 20
-    for robustness checks) is applied at load time in Script 02.
-
-    This way we only need to run Script 01 once. Changing the threshold
-    for a robustness check just requires reloading the CSV with a different
-    filter, not rerunning the entire multi-hour processing job.
+    All sequences with count >= MIN_COUNT_TO_SAVE (default = 3) are saved.
+    The analysis threshold (PRIMARY_BOOK_THRESHOLD = 10, or 5 or 20 for
+    robustness checks) is applied at load time in Script 02, so a different
+    threshold needs only a different filter on this CSV, not a rerun of the
+    multi-hour processing job.
 
     Output columns:
         move_sequence   Space-separated UCI moves (e.g., "e2e4 e7e5 g1f3")
@@ -618,7 +605,7 @@ def save_output(counts: defaultdict) -> None:
     """
     log.info('Filtering and saving...')
 
-    # Count how many sequences survive each threshold (for your Methods section)
+    # Count how many sequences survive each threshold
     log.info('')
     log.info('Sequence counts by threshold:')
     log.info(f'  Total unique sequences (all counts):   {len(counts):>10,}')
@@ -647,7 +634,7 @@ def save_output(counts: defaultdict) -> None:
 
     log.info(f'Saved: {OUTPUT_PATH}')
 
-    # Print depth distribution — useful for verifying the corpus looks reasonable
+    # Depth distribution, as a check that the corpus looks reasonable
     from collections import Counter
     depth_dist = Counter(len(seq) for seq in to_save)
     log.info('\nDepth distribution of saved sequences:')
@@ -675,7 +662,7 @@ def main():
     log.info('')
 
     # ── Phase 1: Download ──────────────────────────────────────────────────────
-    # Always call download_with_resume — it handles three cases automatically:
+    # Always call download_with_resume. It handles three cases:
     #   1. File does not exist yet: starts a fresh download
     #   2. File exists but is incomplete (connection dropped): resumes from
     #      the last byte written, no progress lost
@@ -683,8 +670,8 @@ def main():
     #      returns immediately with "File already fully downloaded."
     #
     # Never skip this call just because the file exists on disk. A partial
-    # file looks identical to a complete one — only the server can tell the
-    # difference via the Range header response.
+    # file looks identical to a complete one; only the server's response to
+    # the Range header can tell them apart.
     log.info('Phase 1: Checking download status...')
     if DOWNLOAD_PATH.exists():
         size_gb = DOWNLOAD_PATH.stat().st_size / 1e9
@@ -701,7 +688,7 @@ def main():
         return
 
     log.info('Phase 2-5: Streaming through games and counting opening sequences...')
-    log.info('Safe to interrupt with Ctrl+C — progress is saved every 100,000 games.')
+    log.info('Safe to interrupt with Ctrl+C; progress is saved every 25,000 games.')
     log.info('')
 
     counts = build_sequence_counts()
@@ -712,7 +699,7 @@ def main():
     log.info('Phase 6: Saving output...')
     save_output(counts)
 
-    # Clean up checkpoint files now that we have the final output
+    # Remove checkpoint files once the final output is written
     for ck in [CHECKPOINT_A, CHECKPOINT_B, CHECKPOINT_LEGACY]:
         if ck.exists():
             ck.unlink()

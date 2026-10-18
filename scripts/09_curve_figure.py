@@ -4,18 +4,17 @@ Script 09: Transition curve figure (EXPLORATORY)
 ==============================================================================
 Plots thinking time across the book boundary.
 
-The design puts the in-book region and the out-of-book region on visibly
-different footings and breaks the line at the boundary, so the step reads
-as a step. The curve shows cell means, which mix different games at
-different positions; claims about trends should cite the within-game
-numbers in transition_curve.txt, not the shape of this curve.
+The in-book and out-of-book regions are shaded differently, and the line is
+broken at the boundary so the step is not drawn as part of a trend. The
+curve shows cell means, which mix different games at different positions;
+statements about trends rest on the within-game estimates in
+transition_curve.txt, not on the shape of this curve.
 
 Reads outputs/tables/transition_curve.csv, written by Script 08 (version 3).
 The footnote's numbers are computed from that file.
 
 STATUS: EXPLORATORY. This analysis was proposed after the confirmatory
-results were observed. Label it as such wherever the figure appears.
-See https://osf.io/n6tkx/ Section 7.
+results were observed. See https://osf.io/n6tkx/ Section 7.
 
 Produces:
     fig6_transition_curve.png / .pdf   all five bands, one panel
@@ -45,8 +44,8 @@ from matplotlib.ticker import FuncFormatter
 # ── Design tokens ────────────────────────────────────────────────────────────
 # Sequential blue->orange ramp: encodes rating band as an ordered variable, and
 # stays distinguishable in greyscale (lightness increases monotonically).
-# Chosen over a categorical palette because the bands ARE ordered -- a
-# categorical scheme would throw that information away.
+# A sequential palette suits ordered bands; a categorical palette would hide
+# the ordering.
 BAND_COLORS = {
     'band_1': '#0B3D5C',
     'band_2': '#2E7A9E',
@@ -62,8 +61,9 @@ BAND_LABELS = {
     'band_5': 'band 5  (2300+)',
 }
 
-# Journal mode: the journal wants each figure as its own image with no title or
-# caption (captions go in a separate file) and labels in title case.
+# Journal mode follows the journal's figure guidelines: each figure is its own
+# image with no title or caption (captions go in a separate file), and labels
+# are in title case.
 JOURNAL = '--journal' in sys.argv
 if JOURNAL:
     BAND_LABELS = {k: 'Band' + v[4:] for k, v in BAND_LABELS.items()}
@@ -212,8 +212,8 @@ def main():
         ax.set_xlabel("Move relative to book exit  (player's own moves)", labelpad=8)
         ax.set_ylabel('Mean log thinking time')
 
-    # Legend sits in the empty lower-right; edge labels collided badly because
-    # the band curves converge there.
+    # Legend in the empty lower-right; labels at the line ends would overlap
+    # where the band curves converge.
     handles, labels = ax.get_legend_handles_labels()
     if JOURNAL:
         handles.append(Patch(facecolor=MUTED, alpha=0.18, lw=0))
@@ -274,7 +274,7 @@ def main():
         cells = list(grid.flat)
         axes = cells[:len(bands)]
         spare = cells[len(bands):]
-        # The journal wants keys to symbols inside the figure, not in the
+        # The journal asks for keys to symbols inside the figure, not in the
         # caption, so the first spare cell holds a key; any others are removed.
         if spare:
             draw_key(spare[0])
@@ -341,7 +341,7 @@ def main():
     plt.close(fig)
 
     print(f'\nDone. Both figures written to {fig_dir}.')
-    print('Reminder: label these as exploratory wherever they appear.')
+    print('Status: exploratory (proposed after the confirmatory results).')
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Print the software versions the paper must report, including the Stockfish
+Print the software versions used in the analysis, including the Stockfish
 build named in config.py. Saves them to outputs/tables/software_versions.txt.
 
 USAGE

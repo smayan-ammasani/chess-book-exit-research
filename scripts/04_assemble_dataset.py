@@ -7,15 +7,16 @@ PURPOSE
     boundary pair dataset (Script 02), apply pre-registered exclusion filters,
     add log-transformed thinking times, and produce three output datasets:
 
-    1. filtered_pairs.csv  — all clean boundary pairs (one row per pair)
-    2. analysis_sample.csv — stratified random sample of 1M pairs for
-                             the mixed-effects model in Script 05
-    3. player_aggregated.csv — one row per player with mean statistics,
-                               for the simpler Kruskal-Wallis approach
+    1. filtered_pairs.csv    all clean boundary pairs (one row per pair)
+    2. analysis_sample.csv   stratified systematic sample of up to 1M pairs
+                             (200,000 per band, or all of a smaller band)
+                             for the mixed-effects models
+    3. player_aggregated.csv one row per player with mean statistics, for
+                             the player-level Kruskal-Wallis test
 
 INPUT
-    data/processed/boundary_pairs.csv        — from Script 02
-    data/processed/stockfish_covariate.csv   — from Script 03
+    data/processed/boundary_pairs.csv        from Script 02
+    data/processed/stockfish_covariate.csv   from Script 03
 
 OUTPUT
     data/processed/filtered_pairs.csv
@@ -93,14 +94,14 @@ FILTERED_PATH   = PROCESSED_DIR / 'filtered_pairs.csv'
 SAMPLE_PATH     = PROCESSED_DIR / 'analysis_sample.csv'
 PLAYER_AGG_PATH = PROCESSED_DIR / 'player_aggregated.csv'
 
-# Sample size for mixed-effects model (computationally feasible, statistically
-# more than adequate — Russek et al. 2025 used 12M games; 1M pairs is ample)
+# Target size of analysis_sample.csv, split evenly across the five bands
 SAMPLE_SIZE = 1_000_000
 
 # Chunk size for streaming the 4.9 GB boundary_pairs.csv
 CHUNK_SIZE = 100_000
 
-# Small offset added before log-transforming to prevent log(0) errors
+# Offset added before the log transform. Zero: the premove filter keeps every
+# retained time above the threshold, so log(0) cannot occur (see docstring).
 LOG_OFFSET = 0.0
 
 
@@ -172,11 +173,12 @@ def process_chunk(chunk: pd.DataFrame, voc_lookup: dict,
     Returns the filtered, enriched rows ready for writing.
 
     FILTERS:
-    1. Exclude first_oob_is_premove = True.
-       These are cases where the player queued their first out-of-book move
-       during the opponent's turn. The recorded thinking time is a UI artifact
-       (near-zero regardless of how long the player actually considered the
-       position), not a cognitive signal.
+    1. Exclude pairs where either move is a premove (last_book_is_premove or
+       first_oob_is_premove). A premove is queued during the opponent's turn,
+       so its recorded time is a UI artifact (near zero however long the
+       player considered the position), not a cognitive signal. Both sides
+       are filtered because the outcome is a difference: removing fast moves
+       on one side only would inflate it.
 
     2. Exclude pairs where either VOC value is missing from the Stockfish
        lookup. This happens only if normalize_fen produced a string not in
@@ -219,7 +221,7 @@ def process_chunk(chunk: pd.DataFrame, voc_lookup: dict,
     if chunk.empty:
         return chunk
 
-   # No offset: filter 1 floors every retained time above the premove
+    # No offset: filter 1 floors every retained time above the premove
     # threshold, so log(0) cannot occur.
     chunk['log_last_book_time'] = np.log(chunk['last_book_thinking_time'] + LOG_OFFSET)
     chunk['log_first_oob_time'] = np.log(chunk['first_oob_thinking_time'] + LOG_OFFSET)
@@ -248,7 +250,7 @@ def filter_and_join(voc_lookup: dict) -> None:
     """
     Stream boundary_pairs.csv in chunks, apply filters, write filtered rows.
 
-    Prints a filtration log at the end for the paper's Methods section.
+    Prints a filtration log at the end.
     """
     log.info('Phase 2: Filtering boundary pairs and joining VOC...')
     log.info(f'Input:  {PAIRS_PATH}')
@@ -285,7 +287,7 @@ def filter_and_join(voc_lookup: dict) -> None:
 
     log.info('')
     log.info('=' * 65)
-    log.info('FILTRATION LOG (Script 04) — copy into Methods section:')
+    log.info('FILTRATION LOG (Script 04)')
     log.info(f'  Input boundary pairs:              {n_in:>12,}')
     for reason, n in sorted(exclusion_counts.items(), key=lambda x: -x[1]):
         log.info(f'  Excluded ({reason}):  {n:>12,}')
@@ -562,8 +564,8 @@ def aggregate_to_player_level() -> None:
 
 def print_summary_statistics() -> None:
     """
-    Print key statistics from the filtered pairs for the paper's Methods section
-    and as a sanity check that the data looks as expected.
+    Print key statistics from the filtered pairs, as a description of the
+    data and a sanity check.
     """
     log.info('Phase 5: Summary statistics (sample of first 500K rows)...')
 
@@ -579,13 +581,13 @@ def print_summary_statistics() -> None:
     log.info('')
     log.info('=== SUMMARY STATISTICS (first 500K pairs) ===')
     log.info('')
-    log.info('Thinking time — last book move (seconds):')
+    log.info('Thinking time, last book move (seconds):')
     desc = df['last_book_thinking_time'].describe()
     for stat, val in desc.items():
         log.info(f'  {stat:8s}: {val:.3f}')
 
     log.info('')
-    log.info('Thinking time — first OOB move (seconds):')
+    log.info('Thinking time, first OOB move (seconds):')
     desc = df['first_oob_thinking_time'].describe()
     for stat, val in desc.items():
         log.info(f'  {stat:8s}: {val:.3f}')
@@ -597,13 +599,13 @@ def print_summary_statistics() -> None:
         log.info(f'  {stat:8s}: {val:.3f}')
 
     log.info('')
-    log.info('VOC — last book positions:')
+    log.info('VOC, last book positions:')
     log.info(f'  mean: {df["last_book_voc"].mean():.1f}  '
              f'median: {df["last_book_voc"].median():.1f}  '
              f'max: {df["last_book_voc"].max():.1f}')
 
     log.info('')
-    log.info('VOC — first OOB positions:')
+    log.info('VOC, first OOB positions:')
     log.info(f'  mean: {df["first_oob_voc"].mean():.1f}  '
              f'median: {df["first_oob_voc"].median():.1f}  '
              f'max: {df["first_oob_voc"].max():.1f}')
@@ -623,7 +625,7 @@ def print_summary_statistics() -> None:
     log.info(f'  Mean first_oob_time:  {mean_oob:.3f} sec')
     log.info(f'  Raw difference:       {mean_oob - mean_lb:+.3f} sec')
     log.info(f'  Raw ratio:            {mean_oob/mean_lb:.3f}x longer')
-    log.info('  (This is the RAW effect — VOC-controlled result comes in Script 05)')
+    log.info('  (Raw effect, before VOC adjustment; the models adjust for VOC)')
     log.info('')
 
 

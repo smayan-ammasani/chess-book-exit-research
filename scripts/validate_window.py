@@ -2,8 +2,8 @@
 """
 Validate transition_window.csv
 ==============================================================================
-Run this after the Script 02 window patch, on a small test run
-(MAX_GAMES_TO_PARSE = 500_000) BEFORE committing to the full 2-3 day run.
+Validates the transition-window extraction in Script 02 on a small test run
+(MAX_GAMES_TO_PARSE = 500_000), before the full 2-3 day run.
 
 Four checks:
   1. ALIGNMENT   - is the window correctly positioned against the boundary?
@@ -11,8 +11,8 @@ Four checks:
   3. SAMPLING    - did the band strides land near their targets?
   4. PANEL SHAPE - how ragged is the window, and where?
 
-Check 1 is the one that matters. If it fails, the window is misaligned and
-nothing downstream is meaningful.
+Check 1 is critical: if it fails, the window is misaligned and nothing
+downstream is meaningful.
 
 USAGE
     python scripts/validate_window.py
@@ -48,13 +48,13 @@ def main():
     path = resolve()
     if not path.exists():
         print(f'ERROR: {path} not found.')
-        print('Has the patched Script 02 been run yet?')
+        print('The window file is written by Script 02.')
         sys.exit(1)
 
     size_gb = path.stat().st_size / 1e9
     print(f'Loading {path.name} ({size_gb:.2f} GB) ...')
     if size_gb > 3:
-        print('Large file -- loading only the columns needed.')
+        print('Large file; loading only the columns needed.')
         df = pd.read_csv(path, usecols=['game_id', 'player_color', 'rating_band',
                                         'relative_move', 'thinking_time',
                                         'in_book', 'ply_at_exit'],
@@ -68,7 +68,7 @@ def main():
 
     # ── CHECK 1: alignment ───────────────────────────────────────────────────
     print('=' * 74)
-    print('CHECK 1 - ALIGNMENT (the one that matters)')
+    print('CHECK 1 - ALIGNMENT (critical)')
     print('=' * 74)
     print('Book membership is defined on move-sequence prefixes, so it is')
     print('monotone within a game: once out of book, always out. Therefore')
@@ -87,7 +87,7 @@ def main():
         print('\n  PASS - window is correctly aligned to the boundary.')
     else:
         failures.append('alignment')
-        print('\n  FAIL - the window is misaligned. Do not proceed.')
+        print('\n  FAIL - the window is misaligned.')
         print('  Most likely cause: exit_idx points at the wrong element of')
         print('  player_plies, or relative_move 0 was defined as the last book')
         print('  move rather than the first out-of-book move.')
@@ -167,10 +167,10 @@ def main():
         failures.append('panel shape')
         print(f'\n  WARN - peak at relative_move = {top}, expected -1 or 0.')
     print()
-    print('  Do NOT drop incomplete windows in the analysis. Requiring a full')
-    print('  16-position window would select for long games that stayed in')
-    print('  book a while, which is exactly the confound the curve is meant')
-    print('  to address. Use a model that handles unbalanced panels.')
+    print('  Incomplete windows are kept. Requiring a full 16-position window')
+    print('  would select for long games that stayed in book a while, which is')
+    print('  exactly the confound the curve is meant to address, so the')
+    print('  analysis must handle unbalanced panels.')
     print()
 
     # ── SUMMARY ──────────────────────────────────────────────────────────────
@@ -178,15 +178,15 @@ def main():
     print('SUMMARY')
     print('=' * 74)
     if not failures:
-        print('  All checks passed. Safe to set MAX_GAMES_TO_PARSE = None and')
-        print('  start the full run.')
+        print('  All checks passed. The window extraction is ready for the full')
+        print('  run (MAX_GAMES_TO_PARSE = None).')
     elif 'alignment' in failures:
-        print('  ALIGNMENT FAILED. Fix extract_window_rows before doing anything')
-        print('  else -- every downstream number would be wrong.')
+        print('  ALIGNMENT FAILED. extract_window_rows must be fixed first;')
+        print('  every downstream number depends on it.')
     else:
         print(f'  Checks needing attention: {", ".join(failures)}')
         print('  Alignment passed, so the window is positioned correctly.')
-        print('  Review the warnings above before the full run.')
+        print('  See the warnings above.')
 
 
 if __name__ == '__main__':

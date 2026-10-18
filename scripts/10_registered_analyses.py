@@ -8,7 +8,7 @@ PURPOSE
     not yet delivered. Earlier scripts are not changed; this one reads their
     outputs.
 
-    What was missing, and what this script does about it:
+    Gaps in the earlier scripts, and how this script addresses them:
 
     1. H1 was never fitted as registered. Script 05b fitted a model with band
        terms and band x is_oob interactions on 1,500 resampled players per
@@ -24,7 +24,7 @@ PURPOSE
        construction. Script 02 kept those pairs. Here they are removed, the
        3-pair minimum is re-applied, and every registered test is run on that
        sample. Results on the sample as originally built are printed beside
-       them so the reader can see the difference (expected to be tiny).
+       them for comparison.
 
     3. Robustness checks 3, 4 and 5 had not been run. Check 1 (book
        thresholds 5 and 20) needs a re-parse and is Script 12. Check 2 was
@@ -52,8 +52,8 @@ MODEL FITTING
     likelihood statsmodels MixedLM maximizes, computed in vectorized form so
     it runs on about 1.8 million rows in seconds. Before anything else the
     script fits the same model with statsmodels MixedLM on a 2,000-player
-    subsample and prints both sets of estimates, so the equivalence is
-    checked in your own output.
+    subsample and prints both sets of estimates, so the equivalence can be
+    checked in the output.
 
 USAGE
     python scripts/10_registered_analyses.py
@@ -560,7 +560,7 @@ def main():
                       'reporting convergence. The registered rule "take the first '
                       'that converges"\nwould accept it. This is the likely cause of '
                       'the singular fit in Script 05,\nand the reason the fits below '
-                      'maximize the same likelihood directly. Report\nit as a '
+                      'maximize the same likelihood directly. This is a\n'
                       'deviation from the registered fitting procedure.')
         except Exception as e:
             print(f'Cross-check skipped: {type(e).__name__}: {e}')
@@ -613,8 +613,8 @@ def main():
               'define\n"premove-adjacent". Operationalized after registration as: '
               'either move recorded\nat 1 s. Clock values are whole seconds, so a '
               'move that took a fraction of a\nsecond can be recorded as 0 s or as '
-              '1 s; 1 s is the value next to the premove\ncode. State this '
-              'definition, and that it was chosen after registration, in Methods.')
+              '1 s; 1 s is the value next to the premove\ncode. This '
+              'definition was chosen after registration.')
         keep3 = ((R['last_book_thinking_time'] > 1.0)
                  & (R['first_oob_thinking_time'] > 1.0)).to_numpy()
         print(f'  pairs kept: {keep3.sum():,} of {len(R):,} ({keep3.mean():.1%})')
@@ -631,9 +631,9 @@ def main():
             d4 = b4 / np.sqrt(m4['s2e'])
             met4 &= bool(b4 > 0 and d4 >= D_THRESHOLD)
             print(f'  {label:<14} beta {b4:+.4f} (SE {se4:.4f}), d {d4:.4f}')
-        print('  (On these scales beta is in seconds or root-seconds, so compare '
-              'the sign and d.\n  Raw seconds have a very long right tail, which '
-              'inflates the residual SD.)')
+        print('  (On these scales beta is in seconds or root-seconds, so only the '
+              'sign and d\n  are comparable. Raw seconds have a very long right '
+              'tail, which inflates the residual SD.)')
 
         print('\nCheck 5: VOC mean-centered')
         _, _, met5 = h1_rule(fit_terms(L, ['is_oob', 'voc_c']), '  H1, centered VOC')

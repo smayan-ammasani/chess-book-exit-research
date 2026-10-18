@@ -5,7 +5,7 @@ data/processed/
 
 
 
-# ── Python cache files — not part of the project ─────────────────────────────
+# ── Python cache files (not part of the project) ─────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -14,19 +14,18 @@ __pycache__/
 # ── Jupyter notebook checkpoints ──────────────────────────────────────────────
 .ipynb_checkpoints/
 
-# ── Virtual environment (if you create one) ───────────────────────────────────
+# ── Virtual environments ─────────────────────────────────────────────────────
 venv/
 env/
 .venv/
 
-# ── OS-generated files ────────────────────────────────────────────────────────
-# OS-generated files
+# ── OS-generated files ───────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# ── Stockfish binary — large executable, not source code ─────────────────────
-# Reinstall via: bash setup_stockfish.sh
+# ── Stockfish binary (large executable, not source code) ─────────────────────
+# Download from stockfishchess.org; STOCKFISH_PATH in config.py sets its path.
 stockfish/
 
 # Editor config

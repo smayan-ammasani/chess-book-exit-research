@@ -3,11 +3,10 @@
 H3 Diagnostic
 ==============================================================================
 PURPOSE
-    Decide whether the ex-Gaussian is a usable model for these thinking-time
-    distributions, and quantify the truncation asymmetry between the book and
-    out-of-book conditions.
-
-    Run this BEFORE trusting any output from Script 06.
+    Checks whether the ex-Gaussian is a usable model for these thinking-time
+    distributions, and quantifies the truncation asymmetry between the book
+    and out-of-book conditions. Script 06's ex-Gaussian fits are meaningful
+    only if this check passes.
 
 WHY
     The ex-Gaussian distribution has a structural skewness ceiling of 2.0:
@@ -209,8 +208,8 @@ def main() -> None:
     print('Interpretation: a large book/oob ratio in the "<0.5s" columns means the')
     print('fitting filter removes far more book moves than out-of-book moves, so any')
     print('book-vs-oob comparison inside the window is between unequally truncated')
-    print('samples. Note also whether the book percentage falls as rating rises --')
-    print('that trend is itself a directly observable discrete-switch signal.')
+    print('samples. A book percentage that falls as rating rises would itself be')
+    print('a directly observable discrete-switch signal.')
     print()
 
     # =========================================================================
@@ -239,11 +238,11 @@ def main() -> None:
             print(f'{band:<9} {name:<5}{cells}')
         print()
 
-    print('A cutoff whose skewness sits comfortably below 2.0 would make the')
-    print('ex-Gaussian fittable -- but changing the window to obtain a fittable')
-    print('result is a researcher degree of freedom. If the window is narrowed,')
-    print('the choice and its rationale must be stated explicitly in Methods,')
-    print('and results at the original window reported alongside.')
+    print('A cutoff whose skewness sits well below 2.0 would make the')
+    print('ex-Gaussian fittable, but choosing the window to obtain a fittable')
+    print('result is a researcher degree of freedom. A narrower window would be')
+    print('a post hoc choice, so results at the original window remain the')
+    print('reference.')
     print()
 
     # =========================================================================
@@ -256,24 +255,24 @@ def main() -> None:
     print(f'Above skewness ceiling:    {infeasible_count} / {total_fits}')
     print()
     if total_fits == 0:
-        print('No fits attempted -- check the input file and column names.')
+        print('No fits attempted; check the input file and column names.')
     elif infeasible_count == 0:
         print('All conditions sit below the ex-Gaussian skewness ceiling.')
-        print('-> The ex-Gaussian is a defensible model here. Refit Script 06 by')
-        print('   maximum likelihood rather than method-of-moments, and re-check')
-        print('   that mu and sigma no longer land on their floors.')
+        print('-> The ex-Gaussian is a defensible model here, provided Script 06')
+        print('   is fitted by maximum likelihood rather than method of moments')
+        print('   and mu and sigma stay off their floors.')
     elif infeasible_count == total_fits:
         print('EVERY condition exceeds the ex-Gaussian skewness ceiling.')
         print('-> No parameterisation of the ex-Gaussian can describe these data,')
         print('   and no fitting method recovers this. Method-of-moments clamps;')
         print('   maximum likelihood degenerates toward a shifted exponential.')
-        print('   H3 needs a different operationalisation -- the truncation')
-        print('   asymmetry in Section 2 is the strongest candidate already in hand.')
+        print('   H3 needs a different operationalisation; the truncation')
+        print('   asymmetry in Section 2 is the strongest available candidate.')
     else:
         print('MIXED: some conditions are fittable and others are not.')
-        print('-> Do not fit only the feasible subset and report those; that')
-        print('   selects on the outcome. Either adopt one approach that applies')
-        print('   to every band, or report the infeasibility itself as the result.')
+        print('-> Fitting only the feasible subset would select on the outcome.')
+        print('   Either one approach applies to every band, or the infeasibility')
+        print('   itself is the result.')
     print()
 
 

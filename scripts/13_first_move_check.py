@@ -2,7 +2,7 @@
 """
 Script 13: Untimed first moves (check and corrected analyses)
 ==============================================================================
-WHAT WAS FOUND
+BACKGROUND
     Lichess does not time either player's first move. The clock starts only
     after Black's first move, and neither first move earns an increment
     (scalachess: Game.applyClock starts the clock after ply 1, and
@@ -17,7 +17,7 @@ WHAT WAS FOUND
     0 s in games with no increment, 5 to 20 s in games with one. Neither
     number measures thinking.
 
-WHERE IT MATTERS
+WHICH PAIRS ARE AFFECTED
     A boundary pair is affected when the player's last in-book move was
     their first move of the game, so they left book on their second move:
     ply_at_exit 3 (White) or 4 (Black).
@@ -32,7 +32,7 @@ WHERE IT MATTERS
         version 3 removes them.
 
 WHAT THIS SCRIPT DOES
-    1. Tests the claim on your data: for affected pairs, how often the
+    1. Tests the claim on the data: for affected pairs, how often the
        recorded book-move time equals the game's increment, next to the
        same rate for all other pairs.
     2. Counts affected pairs by band and time-control type.
@@ -41,8 +41,8 @@ WHAT THIS SCRIPT DOES
        beside the registered results. The registered numbers are recomputed
        first and should match Script 10 exactly.
 
-    The corrected analyses are a correction made after registration. Report
-    them beside the registered results, not in place of them.
+    The corrected analyses are a correction made after registration. They
+    are reported beside the registered results, not in place of them.
 
     Requires scripts/10_registered_analyses.py (its functions are reused,
     so both scripts fit models and compute intervals the same way).
@@ -284,8 +284,8 @@ def main():
                   'measurements.')
         else:
             print(f'\nNOT CONFIRMED: only {100 * shares.get(True, 0):.2f}% of affected '
-                  'pairs carry the increment.\nSend this output before using the '
-                  'corrected results below.')
+                  'pairs carry the increment.\nThe corrected results below assume '
+                  'the claim holds.')
 
         # ── 2. How many pairs ─────────────────────────────────────────────
         header('2. HOW MANY PAIRS ARE AFFECTED (all boundary pairs)')

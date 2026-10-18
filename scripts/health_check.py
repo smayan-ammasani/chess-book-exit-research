@@ -2,16 +2,17 @@
 """
 Pipeline health check
 ==============================================================================
-Read-only. Verifies that every fix made to this pipeline over the last three
-days is actually present in the code, on disk, and in git history -- rather
-than inferred from run output alone.
+Read-only. Verifies that the fixes recorded in
+docs/findings/2026-08-03-pipeline-defects.md, and those made after it, are
+present in the code, on disk, and in git history, rather than inferred from
+run output alone.
 
 Checks four things:
-  1. CODE   - does each script contain the fix it's supposed to contain?
+  1. CODE   - does each script contain its fix?
   2. DATA   - do the expected files exist, and is their modification order
               consistent with the pipeline (e.g. filtered_pairs.csv should
               be newer than the corrected stockfish_covariate.csv)?
-  3. GIT    - do the commits that should exist, exist?
+  3. GIT    - are the expected commits present?
   4. IGNORE - does .gitignore still block outputs/tables or outputs/figures?
 
 This does not re-run any analysis and does not modify any file.
@@ -88,7 +89,7 @@ def main():
     outputs = root / 'outputs'
 
     # ── 1. CODE ──────────────────────────────────────────────────────────────
-    section('1. CODE — is each fix actually present in the script?')
+    section('1. CODE: is each fix present in the script?')
 
     cfg = read(root / 'config.py')
     if 'STOCKFISH_THREADS' in cfg:
@@ -119,8 +120,8 @@ def main():
              'found only 1 occurrence, expected 2 (one per analyse() call)')
     else:
         check('Script 03: game= passed to force ucinewgame', FAIL,
-             'not found. Transposition table will not be cleared between '
-             'positions -- this is Defect 3, unfixed.')
+             'not found. The transposition table will not be cleared '
+             'between positions (Defect 3, unfixed).')
 
     if 'log.debug' in s03 and 'Stockfish error' in s03:
         check('Script 03: engine errors are visible (log.warning)', WARN,
@@ -150,7 +151,7 @@ def main():
     else:
         check('Script 04: symmetric premove filter, and it is applied', FAIL,
              'mask does not reference both last_book_is_premove and '
-             'first_oob_is_premove -- filter is still one-sided (Defect 2).')
+             'first_oob_is_premove; the filter is still one-sided (Defect 2).')
 
     log_offset_line = next((l for l in s04.splitlines()
                             if l.strip().startswith('LOG_OFFSET')), '')
@@ -177,21 +178,19 @@ def main():
                  'filter is used inside create_stratified_sample specifically')
     else:
         check('Script 04: MIN_TRANSITIONS_PER_PLAYER reaches the sample', FAIL,
-             'systematic sampling function not found -- may still be the '
-             'original reservoir block that silently did nothing')
+             'systematic sampling function not found; the code may still be '
+             'the original reservoir block, which had no effect')
 
     s05 = read(scripts / '05_statistical_analysis.py')
     if 'H1 CONFIRMED' in s05 or "'CONFIRMED'" in s05:
         check('Script 05: interpretation text', INFO,
-             'still prints a hardcoded CONFIRMED verdict from p-values, not '
-             'from the registered d / epsilon-squared thresholds. Known, '
-             'not fixed -- 05b applies the correct rule separately and its '
-             'output supersedes this file\'s printed verdict. Consider a '
-             'one-line note at the top of statistical_results.txt pointing '
-             'to mixed_model_refit.txt so this is never read in isolation.')
+             'prints a CONFIRMED verdict from p-values rather than from the '
+             'registered d and epsilon-squared thresholds. Script 05b and '
+             'Script 10 apply the registered rules, and their output '
+             'supersedes this verdict.')
 
     # ── 2. DATA ──────────────────────────────────────────────────────────────
-    section('2. DATA — do the expected files exist, in a sane order?')
+    section('2. DATA: do the expected files exist, in a consistent order?')
 
     expect = [
         ('boundary_pairs.csv', True),
@@ -212,23 +211,22 @@ def main():
             check(f'data/processed/{name} exists', FAIL, 'missing')
         else:
             check(f'data/processed/{name} exists', WARN,
-                 'missing -- if this was deleted, robustness check 2 in the '
-                 'pre-registration can no longer be independently re-verified '
-                 '(the result you already computed is still valid and committed)')
+                 'missing; robustness check 2 cannot be re-verified from this '
+                 'file (the committed result is unaffected)')
 
     if 'stockfish_covariate.csv' in mtimes and 'stockfish_covariate_PRE_FIX.csv' in mtimes:
         if mtimes['stockfish_covariate.csv'] > mtimes['stockfish_covariate_PRE_FIX.csv']:
             check('Corrected VOC file is newer than the PRE_FIX file', PASS)
         else:
             check('Corrected VOC file is newer than the PRE_FIX file', WARN,
-                 'unexpected timestamp order -- confirm which file is which')
+                 'unexpected timestamp order; confirm which file is which')
 
     if 'filtered_pairs.csv' in mtimes and 'stockfish_covariate.csv' in mtimes:
         if mtimes['filtered_pairs.csv'] > mtimes['stockfish_covariate.csv']:
             check('filtered_pairs.csv postdates the corrected VOC table', PASS)
         else:
             check('filtered_pairs.csv postdates the corrected VOC table', WARN,
-                 'filtered_pairs.csv looks older than the corrected VOC table -- '
+                 'filtered_pairs.csv looks older than the corrected VOC table; '
                  'it may have been built from the contaminated version')
 
     for name in ('mixed_model_refit.txt',):
@@ -237,7 +235,7 @@ def main():
             check(f'outputs/tables/{name} exists', PASS)
         else:
             check(f'outputs/tables/{name} exists', WARN,
-                 'not found -- has the refit output been saved here yet?')
+                 'not found; the refit output has not been saved here')
 
     for name in ('voc_robustness.txt', 'h3_diagnostic_output.txt'):
         p = outputs / 'diagnostics' / name
@@ -247,7 +245,7 @@ def main():
             check(f'outputs/diagnostics/{name} exists', INFO, 'not found')
 
     # ── 3. GIT ───────────────────────────────────────────────────────────────
-    section('3. GIT — are the fix commits and result commits actually there?')
+    section('3. GIT: are the fix and result commits present?')
 
     if (root / '.git').exists():
         status = git(root, 'status', '--porcelain')
@@ -271,13 +269,13 @@ def main():
                 check(f'Commit found: {label}', PASS)
             else:
                 check(f'Commit found: {label}', WARN,
-                     f'no commit message contains "{needle}" -- '
-                     'may not be committed yet, or worded differently')
+                     f'no commit message contains "{needle}"; '
+                     'not committed yet, or worded differently')
     else:
         check('Git checks', INFO, 'no .git directory found; skipped')
 
     # ── 4. GITIGNORE ─────────────────────────────────────────────────────────
-    section('4. GITIGNORE — are results still trackable?')
+    section('4. GITIGNORE: are results still trackable?')
 
     gi = read(root / '.gitignore')
     bad_patterns = ['outputs/tables', 'outputs/tables/', 'outputs/figures',
@@ -294,11 +292,11 @@ def main():
     for essential in ('data/processed', 'data/raw'):
         hits = [l for l in gi_lines if essential in l]
         if hits:
-            check(f'{essential}/ still ignored (should be, it is large)', PASS)
+            check(f'{essential}/ is ignored (large data)', PASS)
         else:
-            check(f'{essential}/ still ignored (should be, it is large)', WARN,
-                 f'no rule found for {essential} -- risk of trying to commit '
-                 'a multi-GB file')
+            check(f'{essential}/ is ignored (large data)', WARN,
+                 f'no rule found for {essential}; a multi-GB file could be '
+                 'committed by mistake')
 
     # ── SUMMARY ──────────────────────────────────────────────────────────────
     section('SUMMARY')
@@ -311,15 +309,15 @@ def main():
     fails = [r for r in results if r[1] == FAIL]
     warns = [r for r in results if r[1] == WARN]
     if fails:
-        print('  FAILED checks -- address these before trusting any result:')
+        print('  FAILED checks:')
         for label, _, detail in fails:
             print(f'    - {label}')
     if warns:
-        print('  WARNINGS -- worth a look, not necessarily wrong:')
+        print('  WARNINGS:')
         for label, _, detail in warns:
             print(f'    - {label}')
     if not fails and not warns:
-        print('  Nothing failed and nothing needs a second look.')
+        print('  No failures or warnings.')
 
 
 if __name__ == '__main__':

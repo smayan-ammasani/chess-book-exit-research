@@ -28,16 +28,16 @@ DESIGN
     3-pair minimum, the 200,000-per-band systematic sample, and the
     registered H1 model.
 
-WHY YOU CAN TRUST THE RE-PARSE
-    The script imports your own scripts/02_parse_and_tag_games.py and uses
-    its game filter, clock parser, time-control parser and rating bands.
-    Only the boundary search is rebuilt, so that all three thresholds come
-    out of one pass. To prove the rebuilt search matches yours, it runs your
-    process_game() on every 50th parsed game and stops with an error if the
-    threshold-10 pairs differ in any field. The analyze stage then checks
-    every threshold-10 pair against boundary_pairs.csv.
+VALIDATION
+    The script imports scripts/02_parse_and_tag_games.py and uses its game
+    filter, clock parser, time-control parser and rating bands. Only the
+    boundary search is rebuilt, so that all three thresholds come out of one
+    pass. To confirm that the rebuilt search matches Script 02, it runs
+    Script 02's process_game() on every 50th parsed game and stops with an
+    error if the threshold-10 pairs differ in any field. The analyze stage
+    then checks every threshold-10 pair against boundary_pairs.csv.
 
-    The voc stage imports analyze_position() from your
+    The voc stage imports analyze_position() from
     scripts/03_stockfish_covariate.py and first re-evaluates 20 positions
     that are already in stockfish_covariate.csv. If any result differs, it
     stops before doing any new work.
@@ -45,7 +45,7 @@ WHY YOU CAN TRUST THE RE-PARSE
 SPEED
     Script 02 fully parsed all 96.6 million games. This script reads the
     headers of every game as plain text and fully parses only Rapid games
-    that pass your filter and involve a sampled player.
+    that pass the Script 02 filter and involve a sampled player.
 
 OUTPUTS
     data/processed/threshold_pairs.csv               (parse)
@@ -69,7 +69,7 @@ import pandas as pd
 
 THRESHOLDS = (10, 5, 20)          # 10 first: it is the anchor
 PLAYER_SAMPLE_ONE_IN = 10         # 10% of players
-SELF_CHECK_ONE_IN = 50            # compare with your process_game() this often
+SELF_CHECK_ONE_IN = 50            # compare with Script 02's process_game() this often
 CHECKPOINT_EVERY = 200_000        # games
 SAMPLE_SIZE = 1_000_000           # same as Script 04 (200,000 per band)
 CHUNK = 500_000
@@ -116,7 +116,7 @@ class Tee:
 def load_module(filename, name):
     path = SCRIPTS / filename
     if not path.exists():
-        sys.exit(f'ERROR: {path} not found. This script uses your own copy.')
+        sys.exit(f'ERROR: {path} not found. This script imports it from the scripts folder.')
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -482,11 +482,11 @@ def stage_parse():
         if failed:
             PAIRS_PART.unlink(missing_ok=True)
             PROGRESS.unlink(missing_ok=True)
-            print('\nSELF-CHECK FAILED: this script and your Script 02 disagree on '
+            print('\nSELF-CHECK FAILED: this script and Script 02 disagree on '
                   'a pair.')
             print(f'  {failed}')
-            print('The partial output was deleted. Send this message and your '
-                  'current Script 02.')
+            print('The partial output was deleted. The rebuilt boundary search '
+                  'must match Script 02 before the parse can continue.')
             sys.exit(1)
 
         print('\nPARSE LOG')
@@ -503,7 +503,7 @@ def stage_parse():
             for k, v in sorted(ro.items(), key=lambda kv: -kv[1]):
                 print(f'  {k[:60]:<62}{v:>12,}')
         print(f'games fully parsed: {st["parsed"]:,}')
-        print(f'self-checks against your process_game(): {st["self_checks"]:,}, '
+        print(f'self-checks against Script 02 process_game(): {st["self_checks"]:,}, '
               f'all matched')
         print(f'rows written: {st["rows_written"]:,}')
         print('\nPer-band outcome for each sampled player-game, by threshold.')
@@ -831,7 +831,7 @@ def stage_analyze():
                 print('PASS: identical pairs. The re-parse reproduces the main pipeline.')
             else:
                 print('MISMATCH: the re-parse does not reproduce boundary_pairs.csv. '
-                      'Do not use\nthe threshold results until this is explained.')
+                      'The threshold\nresults are not valid until this is explained.')
         else:
             print('boundary_pairs.csv not found; skipped.')
 

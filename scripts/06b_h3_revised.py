@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script 06b: H3-revised — immediate execution as a discrete-transition signal
+Script 06b: H3-revised, immediate execution as a discrete-transition signal
 ==============================================================================
 Pre-registered at https://osf.io/n6tkx/, Section 5.3.
 
@@ -17,8 +17,8 @@ REPLACEMENT PREDICTION
 WHY THIS RUNS ON boundary_pairs.csv, NOT analysis_sample.csv
     The corrected Script 04 now excludes any pair where EITHER move is a
     premove (that is Defect 2's fix). analysis_sample.csv therefore has an
-    out-of-book premove rate of essentially zero by construction -- that
-    filter is exactly what this test needs to measure. This script reads the
+    out-of-book premove rate of essentially zero by construction, and the
+    premove rate is exactly what this test measures. This script reads the
     unfiltered boundary_pairs.csv, which has never had any premove exclusion
     applied, using the last_book_is_premove / first_oob_is_premove flags
     Script 02 already computed for every pair.
@@ -89,7 +89,7 @@ def resolve_paths():
 
 def to_bool(series):
     """
-    Handle True/False, 'True'/'False', 1/0 -- whatever the CSV round-trip gave us.
+    Handle True/False, 'True'/'False' and 1/0, as the CSV round trip may give.
     Returns (bool_series, n_missing). Missing values map to False, so they are
     counted here and reported rather than silently absorbed into the not-a-premove
     group, which would understate the rate.
@@ -147,8 +147,8 @@ def stream_counts(path):
         print(f'  rating_band missing:           {n_missing_band:,}')
         print('  Missing premove flags are treated as NOT a premove, which')
         print('  understates that side\'s rate. Rows with a missing rating_band')
-        print('  are excluded entirely. If these counts are non-trivial relative')
-        print('  to the totals below, investigate Script 02 before interpreting.')
+        print('  are excluded entirely. Counts that are large relative to the')
+        print('  totals below would point to a problem in Script 02.')
     else:
         print('No missing values in any of the three columns.')
     print()
@@ -164,7 +164,7 @@ def main():
     tee = Tee(out_path)
     sys.stdout = tee
     try:
-        print('Script 06b: H3-revised -- immediate execution as a')
+        print('Script 06b: H3-revised, immediate execution as a')
         print('discrete-transition signal')
         print('Pre-registration: https://osf.io/n6tkx/  (Section 5.3)\n')
 
@@ -234,7 +234,7 @@ def main():
         print()
         print('book_only > oob_only in every band would mean book-side premoves')
         print('outnumber OOB-side premoves even among pairs discordant on the')
-        print('other dimension -- the same direction as the registered test,')
+        print('other dimension: the same direction as the registered test,')
         print('via a different, paired-appropriate mechanism.')
         print()
 
@@ -267,8 +267,8 @@ def main():
             print('H3-REVISED NOT SUPPORTED.')
             print(f'Direction is correct in every band, but the ratio falls below '
                  f'{RATIO_TARGET} in: {", ".join(failing)}.')
-            print('Report as a partial / directionally-consistent but not fully')
-            print('confirmed result. Do not lower the threshold after seeing this.')
+            print('The direction is consistent, but the registered criterion is')
+            print('not met; the registered threshold applies.')
         else:
             failing = [r['band'] for r in rows if r['book_rate'] <= r['oob_rate']]
             print('H3-REVISED NOT SUPPORTED.')

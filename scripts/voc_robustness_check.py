@@ -132,11 +132,11 @@ def main() -> None:
         print('bias. Noise in a covariate attenuates its coefficient toward')
         print('zero, so complexity was under-controlled and residual complexity')
         print('variance would be absorbed by whichever predictor correlates')
-        print('with it -- here, is_oob.')
+        print('with it, here is_oob.')
     else:
         print('Pattern: the mean shift is large relative to the RMS difference,')
-        print('indicating systematic bias rather than noise alone. Report both')
-        print('the shift and the spread.')
+        print('indicating systematic bias rather than noise alone. Both the')
+        print('shift and the spread matter.')
     print('=' * 74)
 
 

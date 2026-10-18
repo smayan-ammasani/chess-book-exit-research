@@ -1,31 +1,39 @@
 #!/usr/bin/env python3
 """
-Script 06: Ex-Gaussian Distribution Fitting (Exploratory — H3)
+Script 06: Ex-Gaussian Distribution Fitting (original H3, withdrawn)
 ==============================================================================
+STATUS
+    WITHDRAWN. Sample skewness in every band-by-condition cell exceeds the
+    ex-Gaussian's structural ceiling of 2.0, so the model cannot describe
+    these data (see diagnose_h3.py and
+    docs/findings/2026-08-03-pipeline-defects.md). The registered
+    replacement, H3-revised, is tested in Script 06b. This script is kept as
+    a record.
+
 PURPOSE
-    Test H3 (exploratory): whether the book-exit time cost appears primarily
+    Test the original H3: whether the book-exit time cost appears primarily
     as a change in the slow, deliberate tail of the response-time distribution
     (supporting a discrete cognitive switch) or as a uniform shift of the
     whole distribution (supporting a continuous difficulty gradient).
 
 THE EX-GAUSSIAN DISTRIBUTION
-    Reaction time distributions in cognitive psychology are well-described by
+    Reaction time distributions in cognitive psychology are often described by
     the ex-Gaussian: a convolution of a normal distribution and an exponential.
     It has three parameters:
 
-        mu    — mean of the Gaussian component (routine, automatic processing)
-        sigma — SD of the Gaussian component
-        tau   — mean of the exponential component (slow, deliberate episodes)
+        mu      mean of the Gaussian component (routine, automatic processing)
+        sigma   SD of the Gaussian component
+        tau     mean of the exponential component (slow, deliberate episodes)
 
-    In cognitive neuroscience, an increase in tau specifically indicates that
-    the slow tail of the distribution has grown longer — more observations are
-    being pulled into the slow, effortful mode. This is the signature of a
-    qualitatively different cognitive process intruding (e.g., a switch from
-    recognition to search), rather than everything just getting uniformly slower.
+    An increase in tau means the slow tail of the distribution has grown:
+    more observations fall in the slow, effortful range. It is often read as
+    a sign that a different process (for example, search instead of
+    recognition) occurs on some trials, rather than every response slowing
+    uniformly.
 
-    In contrast, an increase in mu with unchanged tau means the entire
-    distribution shifted right — consistent with a continuous gradient where
-    the same process takes somewhat more time, not with a discrete mode switch.
+    An increase in mu with unchanged tau means the whole distribution shifted
+    right, which fits a continuous gradient in which the same process takes
+    somewhat more time rather than a discrete mode switch.
 
 H3 PREDICTION
     If the book-exit time cost represents a discrete switch from System 1
@@ -37,18 +45,15 @@ H3 PREDICTION
         → tau_OOB ≈ tau_book   (little change in tail)
         → mu_OOB > mu_book     (uniform shift of whole distribution)
 
-    The ratio (tau_OOB - tau_book) / (mu_OOB - mu_book) is our test statistic:
+    The ratio (tau_OOB - tau_book) / (mu_OOB - mu_book) is the test statistic:
     a ratio >> 1 supports the discrete switch; a ratio ≈ 1 supports continuity.
 
 IMPLEMENTATION
     scipy.stats.exponnorm is the built-in ex-Gaussian implementation.
     Parametrisation: K = tau/sigma, loc ≈ mu, scale = sigma.
-    We fit it separately to book and OOB thinking times for each rating band.
+    It is fitted separately to book and OOB thinking times for each band.
 
     Bootstrap 95% CIs are computed for each parameter to quantify uncertainty.
-
-NOTE: This script is EXPLORATORY — the result does not change H1 or H2
-conclusions. It adds mechanistic depth to the paper's Discussion section.
 
 INPUT
     data/processed/analysis_sample.csv
@@ -301,7 +306,7 @@ def run_fitting(sample_df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ==============================================================================
-# FIGURE 5 — EX-GAUSSIAN DECOMPOSITION
+# FIGURE 5: EX-GAUSSIAN DECOMPOSITION
 # ==============================================================================
 
 def figure5_exgaussian(results: pd.DataFrame) -> None:
@@ -314,7 +319,7 @@ def figure5_exgaussian(results: pd.DataFrame) -> None:
     continuous gradient.
     """
     if results.empty or 'condition' not in results.columns:
-        log.warning('No fitted parameters to plot — skipping Figure 5.')
+        log.warning('No fitted parameters to plot; skipping Figure 5.')
         return
 
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.5), sharey=False)
@@ -451,9 +456,9 @@ def interpret_results(results: pd.DataFrame) -> None:
 
     log.info('')
     log.info('Δtau/Δmu > 1: increase in slow-tail component exceeds Gaussian shift')
-    log.info('  → supports discrete System-1→System-2 switch (H3 confirmed)')
+    log.info('  → the pattern expected under a discrete switch (original H3)')
     log.info('Δtau/Δmu < 1: Gaussian shift exceeds tail change')
-    log.info('  → supports continuous resource-rational account (H3 not confirmed)')
+    log.info('  → the pattern expected under a continuous gradient')
     log.info('')
 
 
@@ -462,13 +467,13 @@ def interpret_results(results: pd.DataFrame) -> None:
 # ==============================================================================
 
 def main():
-    log.info('Script 06: Ex-Gaussian Distribution Fitting (Exploratory — H3)')
+    log.info('Script 06: Ex-Gaussian Distribution Fitting (original H3, withdrawn)')
     log.info(f'Bootstrap samples: {N_BOOTSTRAP}')
     log.info(f'Pairs per band:    {PAIRS_PER_BAND:,}')
     log.info(f'Time range:        [{MIN_TIME_FOR_FIT}, {MAX_TIME_FOR_FIT}] seconds')
     log.info('')
-    log.info('NOTE: This is an EXPLORATORY analysis. H1 and H2 are already')
-    log.info('confirmed. This script adds mechanistic depth to the Discussion.')
+    log.info('NOTE: The original H3 was withdrawn because the data exceed the')
+    log.info('ex-Gaussian skewness ceiling. H3-revised is tested in Script 06b.')
     log.info('')
 
     if not SAMPLE_PATH.exists():

@@ -2,7 +2,7 @@
 """
 Ply-trend baseline probe
 ==============================================================================
-THE OBJECTION THIS ADDRESSES
+MOTIVATION
 
     H1 compares the last in-book move to the first out-of-book move. These are
     the same player's consecutive moves, two plies apart. Thinking time
@@ -19,21 +19,21 @@ WHAT THIS DOES
     one player move (two plies), that is an approximate baseline for the
     expected increase with no boundary effect at all.
 
-    Compare that baseline against the observed book -> OOB jump.
+    The baseline is then compared with the observed book-to-OOB jump.
 
 WHAT THIS IS NOT
 
     Cross-sectional, not within-game. Games that leave book at ply 30 may
-    differ systematically from games that leave at ply 10 -- deeper
+    differ systematically from games that leave at ply 10: deeper
     preparation, different openings, possibly stronger players. The slope
     conflates "later plies are slower" with "games that stay in book longer
     are different games."
 
     It is a first-order check on whether the objection is serious, not a
     substitute for extracting the actual transition curve. If the boundary
-    jump is many times the baseline, the objection is likely survivable. If
-    they are comparable, the curve extraction is mandatory before H1 can be
-    interpreted at all.
+    jump is many times the baseline, the objection is unlikely to explain
+    the effect. If they are comparable, H1 cannot be interpreted without
+    the transition curve.
 
 USAGE
     python scripts/ply_trend_probe.py
@@ -221,18 +221,18 @@ def main():
                 print('The boundary jump is many times larger than the ply trend')
                 print('would predict. The "it is just the next move" objection is')
                 print('unlikely to account for the effect. Extracting the full')
-                print('transition curve remains worthwhile for characterising the')
-                print('SHAPE of the transition, but is not required to defend H1.')
+                print('transition curve would still describe the SHAPE of the')
+                print('transition, but H1 does not depend on it.')
             elif worst >= 2:
                 print('The boundary jump exceeds the ply trend, but not by a wide')
-                print('margin in every band. Report this probe as a limitation and')
-                print('treat the full curve extraction as a priority.')
+                print('margin in every band. This is a limitation, and the full')
+                print('transition curve is needed.')
             else:
                 print('The boundary jump is comparable to what the ply trend alone')
                 print('would predict. H1 cannot be cleanly separated from a general')
-                print('ply effect with the current two-point design. Extract the')
-                print('full transition curve before interpreting H1 further, and')
-                print('state this limitation prominently.')
+                print('ply effect with the current two-point design. The full')
+                print('transition curve is needed before H1 can be interpreted,')
+                print('and this is a major limitation.')
         print()
         print('CAVEAT: this trend is cross-sectional. Games leaving book at ply 30')
         print('may differ systematically from games leaving at ply 10, so the slope')

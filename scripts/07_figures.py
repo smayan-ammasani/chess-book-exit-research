@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """
-Script 07: Publication-Quality Figures
+Script 07: Figures (first analysis version)
 ==============================================================================
+STATUS
+    The committed figures fig1 to fig4 were made in the first version of the
+    analysis, whose results were withdrawn (see
+    docs/findings/2026-08-03-pipeline-defects.md). They are not used in the
+    manuscript, whose figures come from Script 09 (--journal). Figure 4 uses
+    coefficients hard-coded from a first-version run of Script 05, so it does
+    not change on a rerun.
+
 PURPOSE
-    Generate all figures for the paper from the statistical analysis outputs.
-    All figures are saved as both PNG (300 dpi, for submission) and PDF
-    (vector, for final print quality).
+    Generate figures from the statistical analysis outputs. All figures are
+    saved as both PNG (300 dpi) and PDF (vector).
 
 FIGURES PRODUCED
-    Figure 1 — Main effect: violin plot of log thinking time, book vs OOB
-    Figure 2 — Rating moderation: is_oob effect by rating band
-    Figure 3 — VOC control: complexity covariate by book status
-    Figure 4 — Coefficient plot: model estimates with 95% CIs
+    Figure 1. Main effect: violin plot of log thinking time, book vs OOB
+    Figure 2. Rating moderation: is_oob effect by rating band
+    Figure 3. VOC control: complexity covariate by book status
+    Figure 4. Coefficient plot: model estimates with 95% CIs
 
 INPUT
     data/processed/analysis_sample.csv
@@ -35,7 +42,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib
-matplotlib.use('Agg')  # non-interactive backend — works without a display
+matplotlib.use('Agg')  # non-interactive backend; works without a display
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
@@ -83,8 +90,8 @@ plt.rcParams.update({
     'figure.dpi':        150,
 })
 
-BOOK_COLOR = '#4878CF'    # blue — in-book moves
-OOB_COLOR  = '#D65F5F'    # red — out-of-book moves
+BOOK_COLOR = '#4878CF'    # blue: in-book moves
+OOB_COLOR  = '#D65F5F'    # red: out-of-book moves
 BAND_PALETTE = sns.color_palette('Blues_d', n_colors=5)
 
 
@@ -98,7 +105,7 @@ def save_figure(fig: plt.Figure, name: str) -> None:
 
 
 # ==============================================================================
-# FIGURE 1 — MAIN EFFECT (violin plot)
+# FIGURE 1: MAIN EFFECT (violin plot)
 # ==============================================================================
 
 def figure1_main_effect(sample_df: pd.DataFrame) -> None:
@@ -106,8 +113,8 @@ def figure1_main_effect(sample_df: pd.DataFrame) -> None:
     Violin plot comparing log thinking time for last-book vs first-OOB moves,
     pooled across all players and rating bands.
 
-    This is the visual representation of H1: the distribution of thinking
-    times shifts right and spreads wider when players leave book.
+    This visualises H1: the distributions of thinking time for the last book
+    move and the first out-of-book move.
 
     Uses a random subsample of 50,000 pairs for plotting speed.
     """
@@ -165,16 +172,16 @@ def figure1_main_effect(sample_df: pd.DataFrame) -> None:
 
 
 # ==============================================================================
-# FIGURE 2 — RATING MODERATION
+# FIGURE 2: RATING MODERATION
 # ==============================================================================
 
 def figure2_rating_moderation(player_df: pd.DataFrame) -> None:
     """
     Bar chart with error bars showing mean log time delta by rating band.
 
-    This visualises H2: the book-exit time cost decreases with player rating,
-    consistent with template theory (stronger players generalise recognition
-    beyond literal memorised sequences).
+    This visualises the H2 comparison: the book-exit time cost by rating
+    band. H2 predicted a decrease with rating; the registered test is in
+    Script 10.
 
     Error bars are 95% confidence intervals of the mean.
     """
@@ -238,7 +245,7 @@ def figure2_rating_moderation(player_df: pd.DataFrame) -> None:
 
 
 # ==============================================================================
-# FIGURE 3 — VOC CONTROL
+# FIGURE 3: VOC CONTROL
 # ==============================================================================
 
 def figure3_voc_control(sample_df: pd.DataFrame) -> None:
@@ -246,11 +253,10 @@ def figure3_voc_control(sample_df: pd.DataFrame) -> None:
     Scatter plot showing VOC (complexity) distribution for last-book versus
     first-OOB positions, with a linear fit for each condition.
 
-    Demonstrates that:
-    (a) First-OOB positions are modestly more complex (higher VOC) than
-        last-book positions, partly explaining the raw time difference.
-    (b) The positive relationship between VOC and thinking time exists for
-        both conditions, justifying VOC as a control variable.
+    Shows:
+    (a) whether first-OOB positions are more complex (higher VOC) than
+        last-book positions, and
+    (b) the relationship between VOC and thinking time in both conditions.
 
     Uses a subsample of 10,000 pairs for clarity.
     """
@@ -270,9 +276,9 @@ def figure3_voc_control(sample_df: pd.DataFrame) -> None:
         y = sub[col_y]
 
         # For visualization only: exclude near-zero thinking times (log < -1)
-        # These are premovedmoves (0-second clock reads) that compress the
-        # y-axis and obscure the main distribution. They remain in the analysis
-        # dataset — this clip is purely cosmetic for Figure 3.
+        # These are premoves (0-second clock reads) that compress the y-axis
+        # and obscure the main distribution. They remain in the analysis
+        # dataset; this clip affects Figure 3 only.
         vis_mask = y > -1.0
         x_vis = x[vis_mask]
         y_vis = y[vis_mask]
@@ -300,7 +306,7 @@ def figure3_voc_control(sample_df: pd.DataFrame) -> None:
 
 
 # ==============================================================================
-# FIGURE 4 — COEFFICIENT PLOT
+# FIGURE 4: COEFFICIENT PLOT
 # ==============================================================================
 
 def figure4_coefficients() -> None:
@@ -308,15 +314,14 @@ def figure4_coefficients() -> None:
     Coefficient plot showing the total is_oob effect per rating band,
     derived from the mixed-effects model (is_oob + interaction terms).
 
-    This is the clearest visualisation of H2: each bar is the estimated
-    multiplier on thinking time (in log units) for the book-exit event,
-    for players in that rating band, holding VOC constant.
+    Each bar is the estimated book-exit effect (in log units) for players in
+    that rating band, holding VOC constant.
 
-    Values come directly from the model output in Script 05.
+    The values are hard-coded from a first-version run of Script 05.
     """
     log.info('Figure 4: Coefficient plot...')
 
-    # Values from Script 05 mixed-effects model output
+    # Values hard-coded from a first-version Script 05 mixed-model run
     # is_oob base (band_3 reference) = 1.3449
     # Interaction deltas from the model output
     is_oob_base = 1.3449
@@ -398,7 +403,7 @@ def figure4_coefficients() -> None:
 # ==============================================================================
 
 def main():
-    log.info('Script 07: Publication-Quality Figures')
+    log.info('Script 07: Figures (first analysis version)')
     log.info('')
 
     for path in [SAMPLE_PATH, PLAYER_PATH]:
@@ -422,7 +427,7 @@ def main():
     log.info('All figures saved to: outputs/figures/')
     log.info('')
     log.info('Script 07 complete.')
-    log.info('Next step: write the paper.')
+    log.info('Manuscript figures: python scripts/09_curve_figure.py --journal')
 
 
 if __name__ == '__main__':

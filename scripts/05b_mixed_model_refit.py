@@ -243,8 +243,8 @@ def report(res, long, kind):
     elif beta > 0:
         print(f'\n  H1 NOT SUPPORTED. Effect is positive but d = {d_resid:.4f}')
         print(f'  falls below the registered threshold of {D_THRESHOLD}.')
-        print('  Report as a non-confirmation. Do not substitute a')
-        print('  different effect-size metric or threshold after the fact.')
+        print('  This is a non-confirmation under the registered rule; the')
+        print('  registered metric and threshold apply.')
     else:
         print(f'\n  H1 NOT SUPPORTED. Coefficient is not positive.')
 
@@ -309,8 +309,8 @@ def main():
             print('cluster-robust standard errors clustered on player.\n')
             ols = fit_ols_clustered(long, formula)
             report(ols, long, 'OLS, cluster-robust SEs (player)')
-            print('\nNOTE: this substitution is specified in the pre-registration')
-            print('and must be stated in the manuscript.')
+            print('\nNOTE: this substitution is the fallback specified in the')
+            print('pre-registration.')
 
         print(f'\nSaved to: {out_path}')
     finally:
